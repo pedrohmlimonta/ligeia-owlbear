@@ -1,0 +1,10 @@
+
+{
+  "name":"Ligeia RPG",
+  "version":"0.1.0",
+  "author":"OpenAI",
+  "description":"Ficha e rolagens para Ligeia no Owlbear",
+  "action":{
+    "title":"Ligeia RPG"
+  }
+}
