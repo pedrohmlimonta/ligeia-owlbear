@@ -4,8 +4,8 @@
   "manifest_version": 1,
   "action": {
     "title": "Ligeia RPG",
-    "icon": "/icon.svg",
-    "popover": "/index.html",
+    "icon": "./icon.svg",
+    "popover": "./index.html",
     "height": 560,
     "width": 380
   }
