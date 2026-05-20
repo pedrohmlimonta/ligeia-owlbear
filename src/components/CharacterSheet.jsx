@@ -3,6 +3,11 @@ import {
   loadCharacters,
   saveCharacterToRoom,
   broadcastRoll,
+  onRoleChange,
+  getSelectedItemIds,
+  linkCharacterToItem,
+  unlinkItem,
+  getItemById,
 } from "../lib/obr.js";
 import {
   createBlankCharacter,
@@ -33,6 +38,15 @@ export function CharacterSheet({ characterId }) {
   const [character, setCharacter] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rollToast, setRollToast] = useState(null);
+  const [role, setRole] = useState("GM");
+  const [tokenName, setTokenName] = useState(null);
+
+  useEffect(() => {
+    return onRoleChange(setRole);
+  }, []);
+
+  const isGM = role === "GM";
+  const canEdit = isGM;
 
   // Carrega o personagem
   useEffect(() => {
@@ -48,14 +62,25 @@ export function CharacterSheet({ characterId }) {
     });
   }, [characterId]);
 
-  // Salvamento automático (debounced)
+  // Carrega o nome do token vinculado (se houver)
   useEffect(() => {
-    if (!character || loading) return;
+    if (!character?.tokenId) {
+      setTokenName(null);
+      return;
+    }
+    getItemById(character.tokenId).then((item) => {
+      setTokenName(item?.name || item?.text?.plainText || "Token");
+    });
+  }, [character?.tokenId]);
+
+  // Salvamento automático (debounced) — apenas se podemos editar
+  useEffect(() => {
+    if (!character || loading || !canEdit) return;
     const t = setTimeout(() => {
       saveCharacterToRoom(character);
     }, 400);
     return () => clearTimeout(t);
-  }, [character, loading]);
+  }, [character, loading, canEdit]);
 
   // Auto-dismiss do toast de rolagem
   useEffect(() => {
@@ -132,8 +157,18 @@ export function CharacterSheet({ characterId }) {
     );
   }
 
+  // Jogadores não podem abrir fichas de NPC
+  if (character.npc && !isGM) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center" }} className="muted">
+        <div style={{ fontSize: "1.2rem", marginBottom: "0.5rem" }}>🔒</div>
+        <div>Esta ficha é privada do Narrador.</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="sheet">
+    <div className={"sheet " + (canEdit ? "" : "sheet-readonly")}>
       {/* Toast de rolagem */}
       {rollToast && (
         <div
@@ -212,6 +247,14 @@ export function CharacterSheet({ characterId }) {
         <div className="brand-block">
           <div className="brand-mark">LIGEIA</div>
           <div className="brand-sub">RPG</div>
+          {!isGM && (
+            <div className="readonly-badge" title="Apenas o Narrador pode editar">
+              👁 Somente leitura
+            </div>
+          )}
+          {isGM && character.npc && (
+            <div className="npc-header-badge">NPC (privado)</div>
+          )}
         </div>
         <div style={{ flex: 1 }}>
           <input
@@ -351,6 +394,14 @@ export function CharacterSheet({ characterId }) {
         Clique em qualquer círculo de atributo para rolar 2d6 + atributo +
         dados de melhoria. Os resultados são compartilhados na sala.
       </div>
+
+      {isGM && (
+        <GmControls
+          character={character}
+          tokenName={tokenName}
+          onUpdate={update}
+        />
+      )}
 
       <ActiveModifiersPanel summary={effectSummary} />
 
@@ -1307,6 +1358,87 @@ function ActiveModifiersPanel({ summary }) {
             </span>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   Barra de controles do Narrador (NPC + vínculo com token)
+   ========================================================================= */
+function GmControls({ character, tokenName, onUpdate }) {
+  const [linking, setLinking] = useState(false);
+
+  const handleLink = async () => {
+    setLinking(true);
+    const sel = await getSelectedItemIds();
+    if (sel.length === 0) {
+      alert("Nenhum token selecionado.\nSelecione um token na cena e clique novamente em Vincular.");
+      setLinking(false);
+      return;
+    }
+    if (sel.length > 1) {
+      alert("Selecione apenas um token para vincular.");
+      setLinking(false);
+      return;
+    }
+    const itemId = sel[0];
+    // se já houver vínculo, libera o anterior
+    if (character.tokenId && character.tokenId !== itemId) {
+      await unlinkItem(character.tokenId);
+    }
+    await linkCharacterToItem(itemId, character.id);
+    onUpdate({ tokenId: itemId });
+    setLinking(false);
+  };
+
+  const handleUnlink = async () => {
+    if (!character.tokenId) return;
+    if (!confirm("Desvincular o token desta ficha?")) return;
+    await unlinkItem(character.tokenId);
+    onUpdate({ tokenId: null });
+  };
+
+  return (
+    <div className="gm-controls">
+      <div className="gm-controls-section">
+        <label className="gm-toggle">
+          <input
+            type="checkbox"
+            checked={!!character.npc}
+            onChange={(e) => onUpdate({ npc: e.target.checked })}
+          />
+          <span>Marcar como NPC (oculto dos jogadores)</span>
+        </label>
+      </div>
+      <div className="gm-controls-section">
+        <div className="gm-token-label">
+          Token vinculado:{" "}
+          {character.tokenId ? (
+            <strong style={{ color: "var(--gold)" }}>
+              {tokenName || "—"}
+            </strong>
+          ) : (
+            <span className="muted">nenhum</span>
+          )}
+        </div>
+        <div className="row gap-2">
+          <button onClick={handleLink} disabled={linking} style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}>
+            {character.tokenId ? "🔗 Re-vincular" : "🔗 Vincular ao token selecionado"}
+          </button>
+          {character.tokenId && (
+            <button
+              className="danger"
+              onClick={handleUnlink}
+              style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
+            >
+              Desvincular
+            </button>
+          )}
+        </div>
+        <div className="tiny muted" style={{ marginTop: "0.3rem" }}>
+          Vincular permite abrir esta ficha pelo menu do token (botão direito).
+        </div>
       </div>
     </div>
   );

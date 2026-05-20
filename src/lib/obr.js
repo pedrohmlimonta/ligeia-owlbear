@@ -207,3 +207,133 @@ export async function openDiceRoller() {
     console.warn(e);
   }
 }
+
+/* ============================================================================
+   Papel do jogador (GM vs PLAYER)
+   ============================================================================ */
+
+/** Retorna "GM" ou "PLAYER". Em standalone (fora do OBR) considera GM. */
+export async function getPlayerRole() {
+  if (!isInsideOBR()) return "GM";
+  await whenOBRReady();
+  try {
+    return await OBR.player.getRole();
+  } catch {
+    return "PLAYER";
+  }
+}
+
+/** Assina mudanças no papel do jogador. Retorna unsubscribe. */
+export function onRoleChange(callback) {
+  if (!isInsideOBR()) {
+    callback("GM");
+    return () => {};
+  }
+  let unsub = () => {};
+  whenOBRReady().then(() => {
+    unsub = OBR.player.onChange((player) => {
+      callback(player.role);
+    });
+    // dispara o estado inicial
+    OBR.player.getRole().then(callback).catch(() => {});
+  });
+  return () => unsub();
+}
+
+/* ============================================================================
+   Seleção de tokens / vínculo com items da cena
+   ============================================================================ */
+
+/** Retorna array de IDs de items atualmente selecionados na cena. */
+export async function getSelectedItemIds() {
+  if (!isInsideOBR()) return [];
+  await whenOBRReady();
+  try {
+    return (await OBR.player.getSelection()) || [];
+  } catch {
+    return [];
+  }
+}
+
+/** Retorna o item (token) com o id informado, ou null. */
+export async function getItemById(itemId) {
+  if (!isInsideOBR() || !itemId) return null;
+  await whenOBRReady();
+  try {
+    const items = await OBR.scene.items.getItems([itemId]);
+    return items?.[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Marca/anota o item da cena (token) com o id da ficha vinculada.
+ * Isso permite que o context menu apareça apenas em tokens vinculados.
+ */
+export async function linkCharacterToItem(itemId, characterId) {
+  if (!isInsideOBR() || !itemId) return;
+  await whenOBRReady();
+  try {
+    await OBR.scene.items.updateItems([itemId], (items) => {
+      items.forEach((it) => {
+        it.metadata = it.metadata || {};
+        it.metadata["ligeia/characterId"] = characterId;
+      });
+    });
+  } catch (e) {
+    console.warn("Falha ao vincular token:", e);
+  }
+}
+
+/** Remove o vínculo de um item de cena. */
+export async function unlinkItem(itemId) {
+  if (!isInsideOBR() || !itemId) return;
+  await whenOBRReady();
+  try {
+    await OBR.scene.items.updateItems([itemId], (items) => {
+      items.forEach((it) => {
+        if (it.metadata) delete it.metadata["ligeia/characterId"];
+      });
+    });
+  } catch (e) {
+    console.warn(e);
+  }
+}
+
+/**
+ * Registra um item no menu de contexto da cena: "Abrir Ficha (Ligeia)".
+ * Aparece apenas em tokens cujo metadata contém "ligeia/characterId".
+ *
+ * Deve ser chamado uma vez na inicialização da extensão (popover principal).
+ */
+export async function registerContextMenu() {
+  if (!isInsideOBR()) return;
+  await whenOBRReady();
+  try {
+    await OBR.contextMenu.create({
+      id: "ligeia.openSheet",
+      icons: [
+        {
+          icon: "/icon.svg",
+          label: "Abrir Ficha (Ligeia)",
+          filter: {
+            every: [
+              { key: ["metadata", "ligeia/characterId"], operator: "!=", value: undefined },
+            ],
+            permissions: ["UPDATE"],
+          },
+        },
+      ],
+      onClick: async (context) => {
+        const item = context.items?.[0];
+        const charId = item?.metadata?.["ligeia/characterId"];
+        if (charId) {
+          openCharacterSheet(charId);
+        }
+      },
+    });
+  } catch (e) {
+    console.warn("Falha ao registrar context menu:", e);
+  }
+}

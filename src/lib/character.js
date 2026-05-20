@@ -19,6 +19,10 @@ export function createBlankCharacter(name = "Novo Personagem") {
     id: crypto.randomUUID(),
     version: 1,
 
+    // Tipo
+    npc: false,        // se true, fica oculto dos jogadores (só GM vê)
+    tokenId: null,     // id do item da cena (token) vinculado
+
     // Identidade
     name,
     concept: "",
@@ -137,6 +141,10 @@ export function deriveResources(char) {
 export function migrateCharacter(char) {
   if (!char) return char;
   const c = { ...char };
+
+  // Novos campos com defaults
+  if (typeof c.npc !== "boolean") c.npc = false;
+  if (typeof c.tokenId === "undefined") c.tokenId = null;
 
   // Helper para adicionar campos de efeitos a um item
   const withEffects = (item) => ({

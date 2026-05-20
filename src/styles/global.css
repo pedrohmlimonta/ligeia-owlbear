@@ -284,3 +284,97 @@ label {
 .muted { color: var(--text-muted); }
 .gold { color: var(--gold); }
 .tiny { font-size: 0.75rem; }
+
+/* =========================================================================
+   Role-bar do popover principal
+   ========================================================================= */
+.role-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.role-pill {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9px;
+}
+
+.role-pill.role-gm {
+  background: linear-gradient(135deg, #5a3a14, #8a5a1f);
+  color: #fff;
+  border: 1px solid var(--gold);
+}
+
+.role-pill.role-player {
+  background: rgba(212, 166, 73, 0.08);
+  color: var(--gold-soft);
+  border: 1px solid var(--gold-soft);
+}
+
+/* Painel de NPCs */
+.panel.panel-npc {
+  border: 1px dashed #8b2a2a88;
+  background: linear-gradient(180deg, rgba(139, 42, 42, 0.04), transparent);
+}
+
+.panel.panel-npc .panel-title {
+  color: #c97a7a;
+}
+
+.npc-create-btn {
+  background: rgba(139, 42, 42, 0.15) !important;
+  color: #e9b1b1 !important;
+  border: 1px solid #8b2a2a88 !important;
+  font-size: 0.8rem;
+}
+
+.npc-create-btn:hover {
+  background: rgba(139, 42, 42, 0.3) !important;
+}
+
+.char-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.6rem;
+  border-radius: 3px;
+}
+
+.char-row-npc {
+  border-color: #8b2a2a55;
+}
+
+.char-row-name {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  color: var(--gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.npc-badge {
+  background: #8b2a2a;
+  color: #fff;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  padding: 0.05rem 0.3rem;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+}
+
+.token-link-badge {
+  color: var(--gold-soft);
+  font-size: 0.85rem;
+}

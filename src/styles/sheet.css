@@ -787,3 +787,105 @@
   padding-top: 0.3rem;
   border-top: 1px dashed var(--border);
 }
+
+/* =========================================================================
+   Modo somente leitura (Jogador)
+   ========================================================================= */
+.sheet-readonly input,
+.sheet-readonly textarea,
+.sheet-readonly select {
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-soft) !important;
+  caret-color: transparent;
+}
+
+/* Botões que NÃO são de rolagem ficam desabilitados em readonly.
+   Mantemos clicáveis: attribute-circle, attack-bonus-circle, skill-checkbox
+   apenas como sinalização (mas não permitem mudar o nível porque o input subjacente está bloqueado) */
+.sheet-readonly button:not(.attribute-circle):not(.attack-bonus-circle):not(.dismiss):not(.skill-checkbox):not(.word-chip-mark) {
+  display: none !important;
+}
+
+/* Chips de palavras: não permite alternar em jogador */
+.sheet-readonly .word-chip {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* Esconde controles de adicionar/remover/dropdown de efeitos para jogador */
+.sheet-readonly .effects-toggle,
+.sheet-readonly .effect-add-btn,
+.sheet-readonly .mode-revert {
+  display: none !important;
+}
+
+/* Mantém a pílula de modo visível mas não clicável */
+.sheet-readonly .mode-pill {
+  pointer-events: none;
+}
+
+/* Badge de somente leitura */
+.readonly-badge {
+  display: inline-block;
+  background: rgba(212, 166, 73, 0.1);
+  border: 1px solid var(--gold-soft);
+  color: var(--gold-soft);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 9px;
+  margin-top: 0.3rem;
+}
+
+.npc-header-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #5a1a1a, #8b2a2a);
+  color: #fff;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9px;
+  margin-top: 0.3rem;
+  font-weight: 700;
+}
+
+/* =========================================================================
+   Barra de controles do GM
+   ========================================================================= */
+.gm-controls {
+  background: linear-gradient(180deg, rgba(139, 42, 42, 0.07), rgba(139, 42, 42, 0.02));
+  border: 1px solid #8b2a2a44;
+  border-radius: 4px;
+  padding: 0.5rem 0.7rem;
+  margin: 0.5rem 0;
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.gm-controls-section {
+  flex: 1;
+  min-width: 220px;
+}
+
+.gm-toggle {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.gm-toggle input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.gm-token-label {
+  font-size: 0.82rem;
+  margin-bottom: 0.3rem;
+}
