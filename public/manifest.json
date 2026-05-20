@@ -4,8 +4,8 @@
   "manifest_version": 1,
   "action": {
     "title": "Ligeia RPG",
-    "icon": "./icon.svg",
-    "popover": "./index.html",
+    "icon": "https://pedrohmlimonta.github.io/ligeia-owlbear/icon.svg",
+    "popover": "https://pedrohmlimonta.github.io/ligeia-owlbear/index.html",
     "height": 560,
     "width": 380
   }
