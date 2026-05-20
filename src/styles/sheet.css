@@ -1,0 +1,485 @@
+/* =====================================================
+   Ficha de Personagem — estilos
+   Layout inspirado na ficha oficial (Ficha_de_Personagem.pdf)
+   ===================================================== */
+
+.sheet {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+.sheet-header .brand-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+}
+
+.sheet-header .brand-block .brand-mark {
+  font-size: 1.8rem;
+  letter-spacing: 0.2em;
+}
+
+.sheet-header .brand-block .brand-sub {
+  letter-spacing: 0.5em;
+  font-size: 0.6rem;
+}
+
+.sheet-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* ====== Linha de identidade (nome, conceito, raça, vocação...) ====== */
+.identity-grid {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.identity-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* ====== Layout principal: atributos (esquerda) + habilidades/equip (direita) ====== */
+.sheet-main {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .sheet-main {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ====== Bloco de Atributo (círculo dourado à esquerda) ====== */
+.attribute-block {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.6rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  padding: 0.6rem;
+  border-radius: 6px;
+  align-items: center;
+}
+
+.attribute-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--bg-soft), var(--bg-deep) 75%);
+  border: 2px solid var(--gold);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow:
+    inset 0 0 12px rgba(0, 0, 0, 0.6),
+    0 2px 6px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.attribute-circle:hover {
+  box-shadow:
+    inset 0 0 12px rgba(0, 0, 0, 0.6),
+    0 0 16px rgba(212, 166, 73, 0.5);
+}
+
+.attribute-circle .attr-name {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--gold-soft);
+  text-transform: uppercase;
+  margin-bottom: 0.1rem;
+}
+
+.attribute-circle .attr-value {
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.attribute-circle .attr-dice {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-deep);
+  border: 1px solid var(--gold-dark);
+  border-radius: 3px;
+  padding: 1px 8px;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  color: var(--gold);
+}
+
+.attribute-derived {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+}
+
+.derived-pill {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  padding: 0.35rem 0.6rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 3px;
+  font-size: 0.85rem;
+}
+
+.derived-pill label {
+  font-size: 0.65rem;
+  margin: 0;
+  flex: 1;
+}
+
+.derived-pill .derived-value {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--gold);
+  font-weight: 600;
+  min-width: 36px;
+  text-align: center;
+}
+
+/* ====== Habilidades (B/A/E) ====== */
+.skills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.skill-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  gap: 0.4rem;
+  align-items: center;
+  background: var(--bg-deep);
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.skill-row input[type="text"] {
+  padding: 0.25rem 0.4rem;
+  font-size: 0.85rem;
+}
+
+.skill-checkbox {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.skill-checkbox.active {
+  background: var(--gold-dark);
+  color: var(--text);
+  border-color: var(--gold);
+  box-shadow: 0 0 6px rgba(212, 166, 73, 0.4);
+}
+
+.skill-checkbox:hover {
+  border-color: var(--gold-soft);
+}
+
+.skill-header {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  gap: 0.4rem;
+  padding: 0 0.5rem 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--gold-soft);
+  text-transform: uppercase;
+}
+
+.skill-header > span {
+  width: 28px;
+  text-align: center;
+}
+
+/* ====== Resource bars (PV / PM) ====== */
+.resource-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.4rem;
+  align-items: center;
+  background: var(--bg-deep);
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.resource-bar label {
+  margin: 0;
+  font-size: 0.7rem;
+}
+
+.resource-bar input {
+  text-align: center;
+  width: 50px;
+}
+
+.resource-bar .resource-divider {
+  color: var(--text-muted);
+  font-family: var(--font-display);
+}
+
+/* ====== Ataques ====== */
+.attack-block {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 0.5rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  padding: 0.6rem;
+  border-radius: 4px;
+}
+
+.attack-bonus-circle {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--blood), var(--bg-deep) 80%);
+  border: 2px solid var(--rubi);
+  width: 90px;
+  height: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0 auto;
+}
+
+.attack-bonus-circle .attr-name {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--rubi-bright);
+  text-transform: uppercase;
+}
+
+.attack-bonus-circle .attr-value {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  color: var(--text);
+  line-height: 1;
+}
+
+.attack-bonus-circle:hover {
+  box-shadow: 0 0 16px rgba(196, 69, 61, 0.5);
+}
+
+.attack-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.attack-details input,
+.attack-details select {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* ====== Magia ====== */
+.magic-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 900px) {
+  .magic-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.words-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.3rem;
+}
+
+.word-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+
+.word-chip:hover {
+  border-color: var(--gold-soft);
+}
+
+.word-chip.known {
+  background: linear-gradient(135deg, var(--gold-dark), #2a1f15);
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.word-chip-mark {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--gold);
+}
+
+.word-chip.known .word-chip-mark {
+  background: var(--gold);
+  color: var(--bg);
+  border-color: var(--gold);
+}
+
+.grimoire-entry {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.grimoire-entry .base-spell {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  color: var(--gold-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+
+.grimoire-entry .metamagic {
+  margin-left: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.grimoire-entry .metamagic input {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.4rem;
+}
+
+.grimoire-entry .metamagic label {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+}
+
+/* ====== Rolagem inline (modal/toast) ====== */
+.roll-toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 100;
+  background: var(--bg-raised);
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  padding: 1rem;
+  min-width: 280px;
+  box-shadow: var(--shadow-lg), var(--glow-gold);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.roll-toast .roll-total {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1;
+}
+
+.roll-toast.crit-success { border-color: var(--crit-success); }
+.roll-toast.crit-success .roll-total { color: var(--crit-success); }
+.roll-toast.crit-fail { border-color: var(--crit-fail); }
+.roll-toast.crit-fail .roll-total { color: var(--crit-fail); }
+
+/* ====== Mensagens informativas ===== */
+.info-bar {
+  background: var(--bg-deep);
+  border-left: 3px solid var(--gold);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+}
+
+/* Layout responsivo geral */
+@media (max-width: 700px) {
+  .identity-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .attribute-block {
+    grid-template-columns: 90px 1fr;
+  }
+  .attribute-circle {
+    width: 80px;
+    height: 80px;
+  }
+}
