@@ -2,10 +2,14 @@
   "name": "Ligeia RPG",
   "version": "1.0.0",
   "manifest_version": 1,
+  "description": "Ficha de personagem digital e rolador de dados 3D para o sistema Ligeia RPG, com layout fiel ao livro de regras.",
+  "author": "Comunidade Ligeia",
+  "image": "./header.svg",
+  "icon": "./icon.svg",
   "action": {
     "title": "Ligeia RPG",
-    "icon": "https://pedrohmlimonta.github.io/ligeia-owlbear/icon.svg",
-    "popover": "https://pedrohmlimonta.github.io/ligeia-owlbear/index.html",
+    "icon": "./icon.svg",
+    "popover": "./index.html",
     "height": 560,
     "width": 380
   }
