@@ -6,9 +6,9 @@
 
 export const WORDS_OF_BASE = [
   // Palavras abstratas (não conjuráveis sozinhas; servem como base)
-  { id: "omni", name: "Omni", category: "abstrata" },
-  { id: "othera", name: "Othera", category: "abstrata" },
-  { id: "autem", name: "Autem", category: "abstrata" },
+  // { id: "omni", name: "Omni", category: "abstrata" },
+  // { id: "othera", name: "Othera", category: "abstrata" },
+  // { id: "autem", name: "Autem", category: "abstrata" },
 ];
 
 export const ARCANE_WORDS = [
