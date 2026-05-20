@@ -161,8 +161,11 @@ export function onCharactersChanged(callback) {
  * Em modo standalone, abre uma nova aba.
  */
 export async function openCharacterSheet(characterId) {
+  const url = new URL(
+    `sheet.html?id=${encodeURIComponent(characterId)}`,
+    window.location.href
+  ).toString();
   if (!isInsideOBR()) {
-    const url = `./sheet.html?id=${encodeURIComponent(characterId)}`;
     window.open(url, "_blank", "width=1000,height=900");
     return;
   }
@@ -170,7 +173,7 @@ export async function openCharacterSheet(characterId) {
   try {
     await OBR.modal.open({
       id: "ligeia.sheet",
-      url: `./sheet.html?id=${encodeURIComponent(characterId)}`,
+      url,
       width: 1000,
       height: 900,
     });
@@ -179,19 +182,17 @@ export async function openCharacterSheet(characterId) {
   }
 }
 
-/**
- * Abre o rolador de dados em uma janela popover.
- */
 export async function openDiceRoller() {
+  const url = new URL("dice.html", window.location.href).toString();
   if (!isInsideOBR()) {
-    window.open("./dice.html", "_blank", "width=600,height=700");
+    window.open(url, "_blank", "width=600,height=700");
     return;
   }
   await whenOBRReady();
   try {
     await OBR.popover.open({
       id: "ligeia.dice",
-      url: "./dice.html",
+      url,
       width: 560,
       height: 680,
       anchorOrigin: { vertical: "CENTER", horizontal: "CENTER" },
