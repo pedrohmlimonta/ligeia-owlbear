@@ -62,30 +62,20 @@ export function createBlankCharacter(name = "Novo Personagem") {
     hp: { current: 0, max: 0, vocationBonus: 0 },
     mp: { current: 0, max: 0, vocationBonus: 0 },
 
-    // Habilidades (cada uma com nível B/A/E)
-    skills: [], // [{ name: "Atletismo", level: "B" }, ...]
+    // Habilidades (cada uma com nível B/A/E + modo/efeitos)
+    skills: [], // [{ name, level, attribute, mode, active, effects: [...] }]
 
-    // Equipamentos (texto livre)
-    equipment: "",
+    // Equipamentos (lista de itens com efeitos)
+    equipment: [], // [{ name, qty, weight, notes, mode, active, effects: [...] }]
 
-    // Ataques (dois espaços conforme a ficha)
-    attacks: [
-      { weapon: "", attribute: "forca", bonus: 0, dice: 0, properties: "" },
-      { weapon: "", attribute: "forca", bonus: 0, dice: 0, properties: "" },
-    ],
+    // Ataques (lista dinâmica)
+    attacks: [], // [{ weapon, attribute, bonus, dice, properties }]
 
     // Magias
     magic: {
-      knownWords: [], // ids de palavras arcanas aprendidas
-      minorSpells: "", // texto livre com magias menores/truques
-      grimoire: [
-        { base: "", metamagics: ["", ""] },
-        { base: "", metamagics: ["", ""] },
-        { base: "", metamagics: ["", ""] },
-        { base: "", metamagics: ["", ""] },
-        { base: "", metamagics: ["", ""] },
-        { base: "", metamagics: ["", ""] },
-      ],
+      knownWords: [],
+      minorSpells: "",
+      grimoire: [], // [{ base, metamagics: [...], mode, active, effects: [...] }]
     },
 
     // Anotações livres
@@ -139,4 +129,97 @@ export function deriveResources(char) {
     hpMax: v + level + vDice + (char.hp.vocationBonus || 0),
     mpMax: m + level + mDice + (char.mp.vocationBonus || 0),
   };
+}
+
+/**
+ * Normaliza fichas antigas para o formato atual.
+ */
+export function migrateCharacter(char) {
+  if (!char) return char;
+  const c = { ...char };
+
+  // Helper para adicionar campos de efeitos a um item
+  const withEffects = (item) => ({
+    mode: item.mode === "active" ? "active" : "passive",
+    active: !!item.active,
+    effects: Array.isArray(item.effects) ? item.effects : [],
+    ...item,
+    // re-aplica após o spread para garantir defaults nas chaves ausentes
+  });
+  const normalizeEffects = (item) => ({
+    ...item,
+    mode: item.mode === "active" ? "active" : "passive",
+    active: !!item.active,
+    effects: Array.isArray(item.effects)
+      ? item.effects.map((e) => ({
+          type: e.type || "bonus",
+          target: e.target || "all",
+          value: typeof e.value === "number" ? e.value : Number(e.value) || 0,
+          label: typeof e.label === "string" ? e.label : "",
+        }))
+      : [],
+  });
+
+  // Habilidades
+  if (Array.isArray(c.skills)) {
+    c.skills = c.skills.map(normalizeEffects);
+  } else {
+    c.skills = [];
+  }
+
+  // Equipamento: string → array
+  if (typeof c.equipment === "string") {
+    const lines = c.equipment
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+    c.equipment = lines.map((line) =>
+      normalizeEffects({ name: line, qty: 1, weight: 0, notes: "" })
+    );
+  } else if (Array.isArray(c.equipment)) {
+    c.equipment = c.equipment.map(normalizeEffects);
+  } else {
+    c.equipment = [];
+  }
+
+  // Ataques
+  if (!Array.isArray(c.attacks)) {
+    c.attacks = [];
+  } else {
+    c.attacks = c.attacks.filter(
+      (a) =>
+        (a.weapon && a.weapon.trim()) ||
+        a.bonus ||
+        a.dice ||
+        (a.properties && a.properties.trim())
+    );
+  }
+
+  // Magia
+  if (!c.magic) {
+    c.magic = { knownWords: [], minorSpells: "", grimoire: [] };
+  } else {
+    if (!Array.isArray(c.magic.knownWords)) c.magic.knownWords = [];
+    if (typeof c.magic.minorSpells !== "string") c.magic.minorSpells = "";
+    if (!Array.isArray(c.magic.grimoire)) {
+      c.magic.grimoire = [];
+    } else {
+      c.magic.grimoire = c.magic.grimoire
+        .map((entry) => ({
+          ...entry,
+          base: entry.base || "",
+          metamagics: Array.isArray(entry.metamagics)
+            ? entry.metamagics.filter((m) => typeof m === "string")
+            : [],
+        }))
+        .filter(
+          (entry) =>
+            (entry.base && entry.base.trim()) ||
+            entry.metamagics.some((m) => m && m.trim())
+        )
+        .map(normalizeEffects);
+    }
+  }
+
+  return c;
 }

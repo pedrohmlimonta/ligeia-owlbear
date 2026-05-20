@@ -161,6 +161,8 @@ export function onCharactersChanged(callback) {
  * Em modo standalone, abre uma nova aba.
  */
 export async function openCharacterSheet(characterId) {
+  // Constrói URL absoluta relativa à página atual para evitar
+  // problemas de resolução de caminho dentro do iframe do Owlbear.
   const url = new URL(
     `sheet.html?id=${encodeURIComponent(characterId)}`,
     window.location.href
@@ -182,6 +184,9 @@ export async function openCharacterSheet(characterId) {
   }
 }
 
+/**
+ * Abre o rolador de dados em uma janela popover.
+ */
 export async function openDiceRoller() {
   const url = new URL("dice.html", window.location.href).toString();
   if (!isInsideOBR()) {

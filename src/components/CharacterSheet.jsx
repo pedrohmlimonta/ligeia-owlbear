@@ -8,8 +8,17 @@ import {
   createBlankCharacter,
   deriveSecondary,
   deriveResources,
+  migrateCharacter,
 } from "../lib/character.js";
 import { rollLigeia } from "../lib/dice.js";
+import {
+  collectActiveEffects,
+  getRollModifiers,
+  summarizeEffects,
+  isItemActive,
+  EFFECT_TARGETS,
+  EFFECT_TYPES,
+} from "../lib/effects.js";
 import {
   RACES,
   HERITAGES,
@@ -17,7 +26,7 @@ import {
   NATIONS,
   CAREERS,
 } from "../data/character.js";
-import { ARCANE_WORDS, WORDS_OF_BASE } from "../data/magicWords.js";
+import { ARCANE_WORDS } from "../data/magicWords.js";
 import { DiceTray } from "./Die3D.jsx";
 
 export function CharacterSheet({ characterId }) {
@@ -34,7 +43,7 @@ export function CharacterSheet({ characterId }) {
     }
     loadCharacters().then((all) => {
       const c = all[characterId];
-      setCharacter(c || createBlankCharacter("Personagem"));
+      setCharacter(c ? migrateCharacter(c) : createBlankCharacter("Personagem"));
       setLoading(false);
     });
   }, [characterId]);
@@ -66,13 +75,34 @@ export function CharacterSheet({ characterId }) {
     }));
 
   // Função de rolagem reutilizável
-  const rollWith = (label, attributeValue, diceCount, extraBonus = 0) => {
+  // Efeitos ativos no momento (recalculados a cada render)
+  const activeEffects = useMemo(
+    () => (character ? collectActiveEffects(character) : []),
+    [character],
+  );
+  const effectSummary = useMemo(
+    () => summarizeEffects(activeEffects),
+    [activeEffects],
+  );
+
+  /**
+   * Faz uma rolagem. ctx descreve a natureza (atributo, ataque, habilidade)
+   * para que os efeitos ativos sejam aplicados automaticamente.
+   */
+  const rollWith = (label, attributeValue, diceCount, extraBonus = 0, ctx = {}) => {
+    const mods = getRollModifiers(activeEffects, ctx);
+    const totalDice = (diceCount || 0) + mods.dice;
+    const totalBonus = (extraBonus || 0) + mods.bonus;
     const r = rollLigeia({
       label,
       attribute: attributeValue,
-      improvement: diceCount,
-      bonus: extraBonus,
+      improvement: totalDice,
+      bonus: totalBonus,
     });
+    // Anexa informações dos modificadores aplicados (para o toast)
+    if (mods.sources.length) {
+      r.appliedModifiers = mods.sources;
+    }
     setRollToast(r);
     broadcastRoll(r, character?.name || "—");
   };
@@ -160,6 +190,18 @@ export function CharacterSheet({ characterId }) {
               }}
             >
               ✗ FALHA CRÍTICA ✗
+            </div>
+          )}
+          {rollToast.appliedModifiers && rollToast.appliedModifiers.length > 0 && (
+            <div className="toast-mods">
+              <div className="tiny" style={{ color: "var(--gold-soft)", textAlign: "center", marginBottom: "0.2rem" }}>
+                Modificadores aplicados:
+              </div>
+              {rollToast.appliedModifiers.map((m, i) => (
+                <div key={i} className="tiny muted" style={{ textAlign: "center" }}>
+                  {m.type === "dice" ? `+${m.value}D` : `${m.value >= 0 ? "+" : ""}${m.value}`} — {m.source}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -310,6 +352,8 @@ export function CharacterSheet({ characterId }) {
         dados de melhoria. Os resultados são compartilhados na sala.
       </div>
 
+      <ActiveModifiersPanel summary={effectSummary} />
+
       {/* Grade principal: atributos | habilidades */}
       <div className="sheet-main">
         {/* Coluna esquerda: atributos */}
@@ -319,10 +363,10 @@ export function CharacterSheet({ characterId }) {
             attr={character.attributes.forca}
             onChange={(p) => updateAttr("forca", p)}
             onRoll={() =>
-              rollWith("Força", character.attributes.forca.value, character.attributes.forca.dice)
+              rollWith("Força", character.attributes.forca.value, character.attributes.forca.dice, 0, { attribute: "forca" })
             }
             derived={[
-              { label: "Bloqueio", value: secondary.bloqueio.value, onRoll: () => rollWith("Bloqueio", secondary.bloqueio.value, secondary.bloqueio.dice) },
+              { label: "Bloqueio", value: secondary.bloqueio.value, onRoll: () => rollWith("Bloqueio", secondary.bloqueio.value, secondary.bloqueio.dice, 0, { attribute: "forca" }) },
               { label: "Carga", value: `${secondary.carga.value} kg`, onRoll: null },
             ]}
           />
@@ -336,10 +380,12 @@ export function CharacterSheet({ characterId }) {
                 "Agilidade",
                 character.attributes.agilidade.value,
                 character.attributes.agilidade.dice,
+                0,
+                { attribute: "agilidade" },
               )
             }
             derived={[
-              { label: "Esquiva", value: secondary.esquiva.value, onRoll: () => rollWith("Esquiva", secondary.esquiva.value, secondary.esquiva.dice) },
+              { label: "Esquiva", value: secondary.esquiva.value, onRoll: () => rollWith("Esquiva", secondary.esquiva.value, secondary.esquiva.dice, 0, { attribute: "agilidade" }) },
               { label: "Deslocamento", value: `${secondary.deslocamento.value} m`, onRoll: null },
             ]}
           />
@@ -349,7 +395,7 @@ export function CharacterSheet({ characterId }) {
             attr={character.attributes.vigor}
             onChange={(p) => updateAttr("vigor", p)}
             onRoll={() =>
-              rollWith("Vigor", character.attributes.vigor.value, character.attributes.vigor.dice)
+              rollWith("Vigor", character.attributes.vigor.value, character.attributes.vigor.dice, 0, { attribute: "vigor" })
             }
             derived={[
               {
@@ -366,7 +412,7 @@ export function CharacterSheet({ characterId }) {
                 onRoll: null,
                 full: true,
               },
-              { label: "Sono, Fome e Sede", value: secondary.sonoFomeSed.value, onRoll: () => rollWith("Vigor (sono/fome/sede)", secondary.sonoFomeSed.value, character.attributes.vigor.dice) },
+              { label: "Sono, Fome e Sede", value: secondary.sonoFomeSed.value, onRoll: () => rollWith("Vigor (sono/fome/sede)", secondary.sonoFomeSed.value, character.attributes.vigor.dice, 0, { attribute: "vigor" }) },
             ]}
           />
 
@@ -375,7 +421,7 @@ export function CharacterSheet({ characterId }) {
             attr={character.attributes.mente}
             onChange={(p) => updateAttr("mente", p)}
             onRoll={() =>
-              rollWith("Mente", character.attributes.mente.value, character.attributes.mente.dice)
+              rollWith("Mente", character.attributes.mente.value, character.attributes.mente.dice, 0, { attribute: "mente" })
             }
             derived={[
               {
@@ -392,7 +438,7 @@ export function CharacterSheet({ characterId }) {
                 onRoll: null,
                 full: true,
               },
-              { label: "Conjuração", value: secondary.conjuracao.value, onRoll: () => rollWith("Conjuração", secondary.conjuracao.value, secondary.conjuracao.dice) },
+              { label: "Conjuração", value: secondary.conjuracao.value, onRoll: () => rollWith("Conjuração", secondary.conjuracao.value, secondary.conjuracao.dice, 0, { attribute: "mente" }) },
             ]}
           />
 
@@ -405,16 +451,38 @@ export function CharacterSheet({ characterId }) {
                 "Percepção",
                 character.attributes.percepcao.value,
                 character.attributes.percepcao.dice,
+                0,
+                { attribute: "percepcao" },
               )
             }
             derived={[
-              { label: "Iniciativa", value: secondary.iniciativa.value, onRoll: () => rollWith("Iniciativa", secondary.iniciativa.value, secondary.iniciativa.dice) },
+              { label: "Iniciativa", value: secondary.iniciativa.value, onRoll: () => rollWith("Iniciativa", secondary.iniciativa.value, secondary.iniciativa.dice, 0, { attribute: "percepcao" }) },
               { label: "Percepção Passiva", value: secondary.percepcaoPassiva.value, onRoll: null },
             ]}
           />
 
           {/* Ataques */}
-          <h3 style={{ marginTop: "0.5rem" }}>Ataques</h3>
+          <div className="row" style={{ marginTop: "0.5rem", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ margin: 0 }}>Ataques</h3>
+            <button
+              onClick={() =>
+                update({
+                  attacks: [
+                    ...character.attacks,
+                    { weapon: "", attribute: "forca", bonus: 0, dice: 0, properties: "" },
+                  ],
+                })
+              }
+              style={{ padding: "0.25rem 0.6rem", fontSize: "0.75rem" }}
+            >
+              + Adicionar Ataque
+            </button>
+          </div>
+          {character.attacks.length === 0 && (
+            <div className="muted tiny" style={{ padding: "0.6rem", textAlign: "center" }}>
+              Nenhum ataque cadastrado. Clique em "+ Adicionar Ataque".
+            </div>
+          )}
           {character.attacks.map((atk, i) => (
             <AttackBlock
               key={i}
@@ -425,6 +493,9 @@ export function CharacterSheet({ characterId }) {
                 newAttacks[i] = { ...newAttacks[i], ...patch };
                 update({ attacks: newAttacks });
               }}
+              onRemove={() => {
+                update({ attacks: character.attacks.filter((_, idx) => idx !== i) });
+              }}
               onRoll={() => {
                 const atVal = character.attributes[atk.attribute]?.value || 0;
                 const atDice = character.attributes[atk.attribute]?.dice || 0;
@@ -433,6 +504,7 @@ export function CharacterSheet({ characterId }) {
                   atVal,
                   atDice + (Number(atk.dice) || 0),
                   Number(atk.bonus) || 0,
+                  { attribute: atk.attribute, isAttack: true },
                 );
               }}
             />
@@ -446,28 +518,22 @@ export function CharacterSheet({ characterId }) {
             attributes={character.attributes}
             onChange={(skills) => update({ skills })}
             onRoll={(skill) => {
-              // Para rolar uma habilidade, somamos 1 dado de melhoria para
-              // o nível B e 2 para o A (regra geral; o jogador pode ajustar).
               const dice = skill.level === "A" ? 2 : skill.level === "B" ? 1 : 0;
               const attrKey = skill.attribute || "mente";
               rollWith(
                 skill.name,
                 character.attributes[attrKey]?.value || 0,
                 (character.attributes[attrKey]?.dice || 0) + dice,
+                0,
+                { attribute: attrKey, skillName: skill.name },
               );
             }}
           />
 
-          <div className="panel">
-            <div className="panel-title">Equipamentos</div>
-            <textarea
-              value={character.equipment}
-              onChange={(e) => update({ equipment: e.target.value })}
-              placeholder="Lista de equipamentos, itens carregados..."
-              rows={8}
-              style={{ resize: "vertical" }}
-            />
-          </div>
+          <EquipmentPanel
+            items={character.equipment}
+            onChange={(equipment) => update({ equipment })}
+          />
 
           <div className="panel">
             <div className="panel-title">Personalidade & Notas</div>
@@ -586,7 +652,7 @@ function ResourceInput({ current, max, onChange }) {
   );
 }
 
-function AttackBlock({ attack, attributes, onChange, onRoll }) {
+function AttackBlock({ attack, attributes, onChange, onRoll, onRemove }) {
   const attrKey = attack.attribute || "forca";
   const baseAttr = attributes[attrKey]?.value || 0;
   const baseDice = attributes[attrKey]?.dice || 0;
@@ -603,12 +669,25 @@ function AttackBlock({ attack, attributes, onChange, onRoll }) {
         </div>
       </div>
       <div className="attack-details">
-        <input
-          type="text"
-          value={attack.weapon}
-          onChange={(e) => onChange({ weapon: e.target.value })}
-          placeholder="Arma"
-        />
+        <div className="row gap-2" style={{ alignItems: "center" }}>
+          <input
+            type="text"
+            value={attack.weapon}
+            onChange={(e) => onChange({ weapon: e.target.value })}
+            placeholder="Arma"
+            style={{ flex: 1 }}
+          />
+          {onRemove && (
+            <button
+              className="danger"
+              onClick={onRemove}
+              style={{ padding: "0.25rem 0.4rem", fontSize: "0.7rem" }}
+              title="Remover ataque"
+            >
+              ✕
+            </button>
+          )}
+        </div>
         <div className="row gap-2">
           <select
             value={attack.attribute}
@@ -643,6 +722,102 @@ function AttackBlock({ attack, attributes, onChange, onRoll }) {
           placeholder="Propriedades (dano, alcance, etc.)"
         />
       </div>
+    </div>
+  );
+}
+
+function EquipmentPanel({ items, onChange }) {
+  const list = Array.isArray(items) ? items : [];
+  const addItem = () => {
+    onChange([...list, { name: "", qty: 1, weight: 0, notes: "" }]);
+  };
+  const updateItem = (i, patch) => {
+    const copy = [...list];
+    copy[i] = { ...copy[i], ...patch };
+    onChange(copy);
+  };
+  const removeItem = (i) => {
+    onChange(list.filter((_, idx) => idx !== i));
+  };
+
+  const totalWeight = list.reduce(
+    (acc, it) => acc + (Number(it.weight) || 0) * (Number(it.qty) || 1),
+    0,
+  );
+
+  return (
+    <div className="panel">
+      <div className="panel-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>Equipamentos</span>
+        <button onClick={addItem} style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem" }}>
+          + Adicionar
+        </button>
+      </div>
+
+      <div className="equipment-header">
+        <span>Item</span>
+        <span title="Quantidade">Qtd</span>
+        <span title="Peso (unitário)">Peso</span>
+        <span></span>
+      </div>
+
+      <div className="equipment-list">
+        {list.length === 0 && (
+          <div className="muted tiny" style={{ padding: "1rem 0", textAlign: "center" }}>
+            Nenhum equipamento. Clique em "+ Adicionar".
+          </div>
+        )}
+        {list.map((item, i) => (
+          <div key={i} className="equipment-row">
+            <div className="equipment-main">
+              <input
+                type="text"
+                value={item.name}
+                onChange={(e) => updateItem(i, { name: e.target.value })}
+                placeholder="Nome do item"
+              />
+              <input
+                type="number"
+                value={item.qty}
+                min="1"
+                onChange={(e) => updateItem(i, { qty: Number(e.target.value) })}
+                title="Quantidade"
+              />
+              <input
+                type="number"
+                value={item.weight}
+                step="0.1"
+                onChange={(e) => updateItem(i, { weight: Number(e.target.value) })}
+                title="Peso (carga)"
+              />
+              <button
+                className="danger"
+                onClick={() => removeItem(i)}
+                style={{ padding: "0.25rem 0.4rem", fontSize: "0.7rem" }}
+                title="Remover"
+              >
+                ✕
+              </button>
+            </div>
+            <input
+              type="text"
+              value={item.notes || ""}
+              onChange={(e) => updateItem(i, { notes: e.target.value })}
+              placeholder="Notas, propriedades, descrição..."
+              className="equipment-notes"
+            />
+            <ItemEffectsBlock
+              item={item}
+              onChange={(patch) => updateItem(i, patch)}
+            />
+          </div>
+        ))}
+      </div>
+      {list.length > 0 && (
+        <div className="tiny muted" style={{ marginTop: "0.5rem", textAlign: "right" }}>
+          Carga total: <strong style={{ color: "var(--gold)" }}>{totalWeight.toFixed(1)}</strong>
+        </div>
+      )}
     </div>
   );
 }
@@ -695,46 +870,52 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
           </div>
         )}
         {skills.map((s, i) => (
-          <div key={i} className="skill-row">
-            <input
-              type="text"
-              value={s.name}
-              onChange={(e) => updateSkill(i, { name: e.target.value })}
-              placeholder="Nome da habilidade"
-              onClick={(e) => {
-                if (s.name && e.detail === 2) onRoll(s);
-              }}
-              title="Clique duplo no nome para rolar"
+          <div key={i} className="skill-card">
+            <div className="skill-row">
+              <input
+                type="text"
+                value={s.name}
+                onChange={(e) => updateSkill(i, { name: e.target.value })}
+                placeholder="Nome da habilidade"
+                onClick={(e) => {
+                  if (s.name && e.detail === 2) onRoll(s);
+                }}
+                title="Clique duplo no nome para rolar"
+              />
+              <button
+                className={"skill-checkbox " + (s.level === "B" ? "active" : "")}
+                onClick={() => setLevel(i, "B")}
+                title="Básico"
+              >
+                {s.level === "B" ? "●" : ""}
+              </button>
+              <button
+                className={"skill-checkbox " + (s.level === "A" ? "active" : "")}
+                onClick={() => setLevel(i, "A")}
+                title="Avançado"
+              >
+                {s.level === "A" ? "●" : ""}
+              </button>
+              <button
+                className={"skill-checkbox " + (s.level === "E" ? "active" : "")}
+                onClick={() => setLevel(i, "E")}
+                title="Especial"
+              >
+                {s.level === "E" ? "●" : ""}
+              </button>
+              <button
+                className="danger"
+                onClick={() => removeSkill(i)}
+                style={{ padding: "0.25rem 0.4rem", fontSize: "0.7rem" }}
+                title="Remover"
+              >
+                ✕
+              </button>
+            </div>
+            <ItemEffectsBlock
+              item={s}
+              onChange={(patch) => updateSkill(i, patch)}
             />
-            <button
-              className={"skill-checkbox " + (s.level === "B" ? "active" : "")}
-              onClick={() => setLevel(i, "B")}
-              title="Básico"
-            >
-              {s.level === "B" ? "●" : ""}
-            </button>
-            <button
-              className={"skill-checkbox " + (s.level === "A" ? "active" : "")}
-              onClick={() => setLevel(i, "A")}
-              title="Avançado"
-            >
-              {s.level === "A" ? "●" : ""}
-            </button>
-            <button
-              className={"skill-checkbox " + (s.level === "E" ? "active" : "")}
-              onClick={() => setLevel(i, "E")}
-              title="Especial"
-            >
-              {s.level === "E" ? "●" : ""}
-            </button>
-            <button
-              className="danger"
-              onClick={() => removeSkill(i)}
-              style={{ padding: "0.25rem 0.4rem", fontSize: "0.7rem" }}
-              title="Remover"
-            >
-              ✕
-            </button>
           </div>
         ))}
       </div>
@@ -762,8 +943,22 @@ function MagicSection({ character, onChange, onRoll }) {
 
   const updateMetamagic = (i, j, value) => {
     const grimoire = [...character.magic.grimoire];
-    const metamagics = [...grimoire[i].metamagics];
+    const metamagics = [...(grimoire[i].metamagics || [])];
     metamagics[j] = value;
+    grimoire[i] = { ...grimoire[i], metamagics };
+    onChange({ magic: { ...character.magic, grimoire } });
+  };
+
+  const addMetamagic = (i) => {
+    const grimoire = [...character.magic.grimoire];
+    const metamagics = [...(grimoire[i].metamagics || []), ""];
+    grimoire[i] = { ...grimoire[i], metamagics };
+    onChange({ magic: { ...character.magic, grimoire } });
+  };
+
+  const removeMetamagic = (i, j) => {
+    const grimoire = [...character.magic.grimoire];
+    const metamagics = (grimoire[i].metamagics || []).filter((_, idx) => idx !== j);
     grimoire[i] = { ...grimoire[i], metamagics };
     onChange({ magic: { ...character.magic, grimoire } });
   };
@@ -777,21 +972,6 @@ function MagicSection({ character, onChange, onRoll }) {
           Clique nas palavras que seu personagem aprendeu.
         </p>
 
-        <h4 style={{ marginTop: "0.4rem", marginBottom: "0.3rem" }}>Abstratas</h4>
-        <div className="words-grid">
-          {WORDS_OF_BASE.map((w) => (
-            <div
-              key={w.id}
-              className={"word-chip " + (known.has(w.id) ? "known" : "")}
-              onClick={() => toggleWord(w.id)}
-            >
-              <div className="word-chip-mark">{known.has(w.id) ? "✓" : ""}</div>
-              <span>{w.name}</span>
-            </div>
-          ))}
-        </div>
-
-        <h4 style={{ marginTop: "0.8rem", marginBottom: "0.3rem" }}>Palavras Arcanas</h4>
         <div className="words-grid">
           {ARCANE_WORDS.map((w) => (
             <div
@@ -821,39 +1001,312 @@ function MagicSection({ character, onChange, onRoll }) {
 
       {/* Grimório */}
       <div className="panel">
-        <div className="panel-title">Grimório</div>
+        <div className="panel-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Grimório</span>
+          <button
+            onClick={() =>
+              onChange({
+                magic: {
+                  ...character.magic,
+                  grimoire: [
+                    ...character.magic.grimoire,
+                    { base: "", metamagics: [] },
+                  ],
+                },
+              })
+            }
+            style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem" }}
+          >
+            + Magia Base
+          </button>
+        </div>
         <p className="tiny muted" style={{ marginBottom: "0.5rem" }}>
-          Até 6 magias base, cada uma com até 2 metamagias.
+          Cada magia base pode ter quantas metamagias forem aprendidas.
         </p>
+        {character.magic.grimoire.length === 0 && (
+          <div className="muted tiny" style={{ padding: "1rem 0", textAlign: "center" }}>
+            Nenhuma magia no grimório. Clique em "+ Magia Base".
+          </div>
+        )}
         {character.magic.grimoire.map((entry, i) => (
           <div key={i} className="grimoire-entry">
-            <div className="base-spell">Magia Base {i + 1}</div>
+            <div className="grimoire-base-row">
+              <div className="base-spell">Magia Base {i + 1}</div>
+              <button
+                className="danger"
+                onClick={() => {
+                  const grimoire = character.magic.grimoire.filter((_, idx) => idx !== i);
+                  onChange({ magic: { ...character.magic, grimoire } });
+                }}
+                style={{ padding: "0.15rem 0.35rem", fontSize: "0.65rem" }}
+                title="Remover magia base"
+              >
+                ✕
+              </button>
+            </div>
             <input
               type="text"
               value={entry.base}
               onChange={(e) => updateGrimoire(i, { base: e.target.value })}
               placeholder="Nome da magia base..."
             />
-            <div className="metamagic">
-              <label>Metamagia 1</label>
-              <input
-                type="text"
-                value={entry.metamagics[0]}
-                onChange={(e) => updateMetamagic(i, 0, e.target.value)}
-                placeholder="—"
-              />
-            </div>
-            <div className="metamagic">
-              <label>Metamagia 2</label>
-              <input
-                type="text"
-                value={entry.metamagics[1]}
-                onChange={(e) => updateMetamagic(i, 1, e.target.value)}
-                placeholder="—"
-              />
-            </div>
+            {(entry.metamagics || []).map((meta, j) => (
+              <div key={j} className="metamagic">
+                <label>Metamagia {j + 1}</label>
+                <div className="row gap-2">
+                  <input
+                    type="text"
+                    value={meta}
+                    onChange={(e) => updateMetamagic(i, j, e.target.value)}
+                    placeholder="—"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    className="danger"
+                    onClick={() => removeMetamagic(i, j)}
+                    style={{ padding: "0.2rem 0.4rem", fontSize: "0.65rem" }}
+                    title="Remover metamagia"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button
+              onClick={() => addMetamagic(i)}
+              style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem", marginTop: "0.3rem" }}
+            >
+              + Metamagia
+            </button>
+            <ItemEffectsBlock
+              item={entry}
+              onChange={(patch) => updateGrimoire(i, patch)}
+            />
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   Sistema de Efeitos: modo passivo/ativo + editor de efeitos + painel resumo
+   ========================================================================= */
+
+function ActiveToggle({ mode, active, onChange, compact = false }) {
+  const isActive = mode === "active";
+  const handleMode = () => {
+    if (isActive) {
+      // volta para passiva
+      onChange({ mode: "passive", active: false });
+    } else {
+      // muda para ativa (desligada por padrão)
+      onChange({ mode: "active", active: false });
+    }
+  };
+  const handleToggle = () => onChange({ active: !active });
+
+  if (!isActive) {
+    return (
+      <button
+        onClick={handleMode}
+        className="mode-pill mode-passive"
+        title="Atualmente passivo - clique para tornar ativável"
+      >
+        {compact ? "P" : "Passivo"}
+      </button>
+    );
+  }
+
+  return (
+    <div className="mode-active-wrap">
+      <button
+        onClick={handleToggle}
+        className={"mode-pill " + (active ? "mode-on" : "mode-off")}
+        title={active ? "Em uso - clique para desligar" : "Disponível - clique para ativar"}
+      >
+        {active ? (compact ? "ON" : "Ativado") : (compact ? "off" : "Ativável")}
+      </button>
+      <button
+        onClick={handleMode}
+        className="mode-revert"
+        title="Voltar para passivo"
+      >
+        ↺
+      </button>
+    </div>
+  );
+}
+
+function EffectsEditor({ effects, onChange }) {
+  const list = effects || [];
+  const addEffect = () => {
+    onChange([
+      ...list,
+      { type: "bonus", target: "all", value: 1, label: "" },
+    ]);
+  };
+  const updateEffect = (i, patch) => {
+    const copy = [...list];
+    copy[i] = { ...copy[i], ...patch };
+    onChange(copy);
+  };
+  const removeEffect = (i) => {
+    onChange(list.filter((_, idx) => idx !== i));
+  };
+
+  return (
+    <div className="effects-editor">
+      {list.length === 0 && (
+        <div className="tiny muted effects-empty">Nenhum efeito.</div>
+      )}
+      {list.map((e, i) => {
+        const isInfo = e.type === "info";
+        const isInfoTarget = e.type === "damage" || e.type === "rd" || e.type === "info";
+        return (
+          <div key={i} className="effect-row">
+            <select
+              value={e.type}
+              onChange={(ev) => updateEffect(i, { type: ev.target.value })}
+              title="Tipo de efeito"
+            >
+              {EFFECT_TYPES.map((t) => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+            {!isInfoTarget && (
+              <select
+                value={e.target}
+                onChange={(ev) => updateEffect(i, { target: ev.target.value })}
+                title="Alvo do efeito"
+              >
+                {EFFECT_TARGETS.map((t) => (
+                  <option key={t.id} value={t.id}>{t.label}</option>
+                ))}
+              </select>
+            )}
+            {!isInfo && (
+              <input
+                type="number"
+                value={e.value}
+                onChange={(ev) => updateEffect(i, { value: Number(ev.target.value) })}
+                className="effect-value"
+                title="Valor"
+              />
+            )}
+            <input
+              type="text"
+              value={e.label || ""}
+              onChange={(ev) => updateEffect(i, { label: ev.target.value })}
+              placeholder={isInfo ? "Descreva a condição..." : "Nota (opcional)"}
+              className="effect-label"
+            />
+            <button
+              className="danger"
+              onClick={() => removeEffect(i)}
+              style={{ padding: "0.2rem 0.35rem", fontSize: "0.65rem" }}
+              title="Remover efeito"
+            >
+              ✕
+            </button>
+          </div>
+        );
+      })}
+      <button
+        onClick={addEffect}
+        className="effect-add-btn"
+      >
+        + Adicionar efeito
+      </button>
+    </div>
+  );
+}
+
+function ItemEffectsBlock({ item, onChange }) {
+  const [open, setOpen] = useState(false);
+  const count = (item.effects || []).length;
+  const active = isItemActive(item);
+  const hasEffects = count > 0;
+
+  return (
+    <div className={"item-effects " + (active && hasEffects ? "is-active" : "")}>
+      <div className="item-effects-bar">
+        <ActiveToggle
+          mode={item.mode}
+          active={item.active}
+          onChange={(patch) => onChange(patch)}
+          compact
+        />
+        <button
+          className="effects-toggle"
+          onClick={() => setOpen(!open)}
+          title="Mostrar/ocultar efeitos"
+        >
+          ⚙ Efeitos {count > 0 && <span className="effects-badge">{count}</span>}
+          <span className="effects-chevron">{open ? "▾" : "▸"}</span>
+        </button>
+      </div>
+      {open && (
+        <EffectsEditor
+          effects={item.effects || []}
+          onChange={(effects) => onChange({ effects })}
+        />
+      )}
+    </div>
+  );
+}
+
+function ActiveModifiersPanel({ summary }) {
+  const { rollBuckets, damageBonus, damageParts, damageReduction, rdParts, conditions } = summary;
+  const empty =
+    rollBuckets.length === 0 &&
+    damageParts.length === 0 &&
+    rdParts.length === 0 &&
+    conditions.length === 0;
+
+  if (empty) return null;
+
+  return (
+    <div className="active-modifiers-panel">
+      <div className="active-modifiers-header">
+        ⚡ Modificadores Ativos
+      </div>
+      <div className="active-modifiers-grid">
+        {rollBuckets.map((b, i) => (
+          <div key={i} className="mod-line">
+            <strong>{b.label}:</strong>{" "}
+            {b.dice ? <span className="mod-dice">+{b.dice}D</span> : null}
+            {b.bonus ? <span className="mod-bonus">{b.bonus >= 0 ? "+" : ""}{b.bonus}</span> : null}
+            <span className="mod-parts">{b.parts.join(" · ")}</span>
+          </div>
+        ))}
+        {damageParts.length > 0 && (
+          <div className="mod-line">
+            <strong>Bônus de Dano:</strong>{" "}
+            <span className="mod-bonus">{damageBonus >= 0 ? "+" : ""}{damageBonus}</span>
+            <span className="mod-parts">{damageParts.join(" · ")}</span>
+          </div>
+        )}
+        {rdParts.length > 0 && (
+          <div className="mod-line">
+            <strong>Redução de Dano:</strong>{" "}
+            <span className="mod-bonus">{damageReduction >= 0 ? "+" : ""}{damageReduction}</span>
+            <span className="mod-parts">{rdParts.join(" · ")}</span>
+          </div>
+        )}
+        {conditions.length > 0 && (
+          <div className="mod-line">
+            <strong>Condições:</strong>{" "}
+            <span className="mod-parts">
+              {conditions.map((c, i) => (
+                <span key={i} className="condition-chip">
+                  {c.text}
+                  {c.source ? <span className="condition-source"> ({c.source})</span> : null}
+                </span>
+              ))}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

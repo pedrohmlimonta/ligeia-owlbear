@@ -397,13 +397,19 @@
   margin-bottom: 0.5rem;
 }
 
+.grimoire-base-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+
 .grimoire-entry .base-spell {
   font-family: var(--font-display);
   font-size: 0.75rem;
   color: var(--gold-soft);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: 0.3rem;
 }
 
 .grimoire-entry .metamagic {
@@ -418,6 +424,59 @@
 
 .grimoire-entry .metamagic label {
   font-size: 0.6rem;
+  color: var(--text-muted);
+}
+
+/* ====== Lista de equipamentos ====== */
+.equipment-header {
+  display: grid;
+  grid-template-columns: 1fr 60px 70px 32px;
+  gap: 0.4rem;
+  padding: 0 0.25rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.equipment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.equipment-row {
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.equipment-main {
+  display: grid;
+  grid-template-columns: 1fr 60px 70px 32px;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.equipment-main input[type="text"] {
+  font-size: 0.85rem;
+}
+
+.equipment-main input[type="number"] {
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 0.25rem;
+}
+
+.equipment-notes {
+  font-size: 0.75rem !important;
+  padding: 0.25rem 0.4rem !important;
+  font-style: italic;
   color: var(--text-muted);
 }
 
@@ -482,4 +541,249 @@
     width: 80px;
     height: 80px;
   }
+}
+
+/* =========================================================================
+   Sistema de Efeitos (passivo/ativo + editor + painel)
+   ========================================================================= */
+
+.skill-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.skill-card.is-active {
+  border-color: var(--gold-soft);
+  box-shadow: 0 0 0 1px var(--gold-soft);
+}
+
+.skill-card .skill-row {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.item-effects {
+  border-top: 1px dashed var(--border);
+  padding-top: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.item-effects.is-active {
+  border-top-color: var(--gold-soft);
+}
+
+.item-effects-bar {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Botões de modo passivo/ativo */
+.mode-pill {
+  font-size: 0.65rem !important;
+  padding: 0.15rem 0.45rem !important;
+  border-radius: 9px !important;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  text-transform: uppercase;
+  border: 1px solid var(--border) !important;
+  background: var(--bg-raised) !important;
+  color: var(--text-muted) !important;
+}
+
+.mode-pill.mode-on {
+  background: linear-gradient(135deg, #5a3a14, #8a5a1f) !important;
+  color: #fff !important;
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 6px rgba(212, 166, 73, 0.5);
+}
+
+.mode-pill.mode-off {
+  background: var(--bg-raised) !important;
+  color: var(--gold-soft) !important;
+  border-color: var(--gold-soft) !important;
+}
+
+.mode-pill.mode-passive {
+  color: var(--text-muted) !important;
+  border-style: dashed !important;
+}
+
+.mode-active-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.mode-revert {
+  font-size: 0.65rem !important;
+  padding: 0.05rem 0.3rem !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  border: none !important;
+}
+.mode-revert:hover {
+  color: var(--gold) !important;
+}
+
+.effects-toggle {
+  font-size: 0.7rem !important;
+  padding: 0.15rem 0.5rem !important;
+  background: transparent !important;
+  color: var(--gold-soft) !important;
+  border: 1px solid var(--border) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.effects-toggle:hover {
+  border-color: var(--gold-soft) !important;
+}
+
+.effects-badge {
+  background: var(--gold);
+  color: var(--bg-deep);
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 0.05rem 0.35rem;
+  min-width: 1.1em;
+  text-align: center;
+}
+
+.effects-chevron {
+  font-size: 0.6rem;
+  opacity: 0.6;
+}
+
+/* Editor de efeitos individual */
+.effects-editor {
+  margin-top: 0.4rem;
+  padding: 0.4rem;
+  background: rgba(212, 166, 73, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.effects-empty {
+  text-align: center;
+  padding: 0.3rem;
+  font-style: italic;
+}
+
+.effect-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.2fr) minmax(120px, 1.5fr) 55px 1.5fr 24px;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.effect-row select,
+.effect-row input {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.35rem;
+}
+
+.effect-value {
+  text-align: center;
+}
+
+.effect-label {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.effect-add-btn {
+  font-size: 0.7rem !important;
+  padding: 0.2rem 0.5rem !important;
+  align-self: flex-start;
+  background: transparent !important;
+  color: var(--gold-soft) !important;
+  border: 1px dashed var(--border) !important;
+}
+
+.effect-add-btn:hover {
+  border-color: var(--gold-soft) !important;
+}
+
+/* Painel de modificadores ativos */
+.active-modifiers-panel {
+  background: linear-gradient(180deg, rgba(212, 166, 73, 0.07), rgba(212, 166, 73, 0.02));
+  border: 1px solid var(--gold-soft);
+  border-radius: 4px;
+  padding: 0.6rem 0.8rem;
+  margin: 0.5rem 0;
+}
+
+.active-modifiers-header {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 0.4rem;
+}
+
+.active-modifiers-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.mod-line strong {
+  color: var(--gold-soft);
+}
+
+.mod-dice {
+  color: var(--rubi-bright);
+  font-weight: 600;
+  margin-right: 0.4rem;
+}
+
+.mod-bonus {
+  color: var(--gold);
+  font-weight: 600;
+  margin-right: 0.4rem;
+}
+
+.mod-parts {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+.condition-chip {
+  display: inline-block;
+  background: rgba(212, 166, 73, 0.1);
+  border: 1px solid var(--gold-soft);
+  padding: 0.1rem 0.45rem;
+  border-radius: 9px;
+  font-size: 0.75rem;
+  font-style: normal;
+  margin: 0 0.25rem 0.2rem 0;
+  color: var(--text);
+}
+
+.condition-source {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+/* Modificadores no toast da rolagem */
+.toast-mods {
+  margin-top: 0.4rem;
+  padding-top: 0.3rem;
+  border-top: 1px dashed var(--border);
 }
