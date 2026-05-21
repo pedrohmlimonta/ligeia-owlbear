@@ -348,7 +348,7 @@ const BAR_OFFSET_Y = 4;    // distância entre o token e a primeira barra
 
 const BAR_COLORS = {
   hp:   { fg: "#c0392b", bg: "#2a0d0a" }, // vermelho
-  mp:   { fg: "#2980b9", bg: "#0a1a2a" }, // azul
+  mp:   { fg: "#5dade2", bg: "#102a3a" }, // azul claro
   hero: { fg: "#27ae60", bg: "#0e2a18" }, // verde
 };
 
@@ -367,14 +367,8 @@ const BAR_ORDER = ["hp", "mp", "hero"];
 export async function updateTokenBars(tokenId, characterId, stats, npc = false) {
   if (!isInsideOBR() || !tokenId || !characterId || !stats) return;
   await whenOBRReady();
-
-  // Só GM atualiza items
-  try {
-    const role = await OBR.player.getRole();
-    if (role !== "GM") return;
-  } catch {
-    return;
-  }
+  // Tentamos atualizar mesmo como Jogador: ele tem permissão de
+  // escrita em items que possui (seu próprio token). Se falhar, ignoramos.
 
   try {
     // 1. Confirma que o token ainda existe
@@ -466,12 +460,6 @@ export async function updateTokenBars(tokenId, characterId, stats, npc = false) 
 export async function removeTokenBars(characterId) {
   if (!isInsideOBR() || !characterId) return;
   await whenOBRReady();
-  try {
-    const role = await OBR.player.getRole();
-    if (role !== "GM") return;
-  } catch {
-    return;
-  }
   try {
     const all = await OBR.scene.items.getItems();
     const toRemove = all

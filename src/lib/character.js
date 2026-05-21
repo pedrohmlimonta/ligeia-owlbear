@@ -92,7 +92,7 @@ export function createBlankCharacter(name = "Novo Personagem") {
 /**
  * Calcula os atributos secundários conforme as regras (Sessão 2).
  */
-export function deriveSecondary(char) {
+export function deriveSecondary(char, activeEffects = []) {
   const a = char.attributes;
   const s = char.secondary;
   const f = a.forca.value;
@@ -105,38 +105,70 @@ export function deriveSecondary(char) {
   const iniBase = Math.max(p, ag);
   const iniDice = p >= ag ? a.percepcao.dice : a.agilidade.dice;
 
+  // Soma deltas dos efeitos de stat
+  let dIni = 0, dDef = 0, dDesloc = 0;
+  for (const e of activeEffects) {
+    if (e.type !== "stat") continue;
+    const val = Number(e.value) || 0;
+    if (e.target === "initiative") dIni += val;
+    else if (e.target === "defense") dDef += val;
+    else if (e.target === "deslocamento") dDesloc += val;
+  }
+
   return {
-    bloqueio: { value: s.bloqueio.override ?? f, dice: a.forca.dice },
+    bloqueio: { value: (s.bloqueio.override ?? f) + dDef, dice: a.forca.dice },
     carga: { value: s.carga.override ?? f, unit: "kg" },
-    esquiva: { value: s.esquiva.override ?? ag, dice: a.agilidade.dice },
+    esquiva: { value: (s.esquiva.override ?? ag) + dDef, dice: a.agilidade.dice },
     deslocamento: {
-      value: (s.deslocamento.override ?? ag) + (s.deslocamento.raceBonus || 0),
+      value:
+        (s.deslocamento.override ?? ag) +
+        (s.deslocamento.raceBonus || 0) +
+        dDesloc,
       unit: "m",
     },
     sonoFomeSed: { value: s.sonoFomeSed.override ?? v },
     conjuracao: { value: s.conjuracao.override ?? m, dice: a.mente.dice },
-    iniciativa: { value: s.iniciativa.override ?? iniBase, dice: iniDice },
+    iniciativa: { value: (s.iniciativa.override ?? iniBase) + dIni, dice: iniDice },
     percepcaoPassiva: { value: s.percepcaoPassiva.override ?? p, dice: a.percepcao.dice },
   };
 }
 
 /**
- * Calcula PV e PM máximos conforme regras:
- *   PV máx = Vigor + Nível + dado de melhoria de Vigor + bônus de vocação + bônus do Narrador
- *   PM máx = Mente + Nível + dado de melhoria de Mente + bônus de vocação + bônus do Narrador
+ * Calcula PV e PM máximos:
+ *   PV máx = Vigor + Nível + dado de melhoria de Vigor + bônus de vocação
+ *            + bônus do Narrador + efeitos de stat (max_hp)
+ *   Idem para PM.
+ *   Pontos Heroicos máx = max(0, Nível + bônus do Narrador + efeitos)
+ *
+ * activeEffects é opcional. Quando passado, soma os efeitos "stat" cujos
+ * targets sejam max_hp, max_mp ou max_heroic.
  */
-export function deriveResources(char) {
+export function deriveResources(char, activeEffects = []) {
   const v = char.attributes.vigor.value;
   const m = char.attributes.mente.value;
   const vDice = char.attributes.vigor.dice;
   const mDice = char.attributes.mente.dice;
   const level = char.level || 1;
+
+  let dHp = 0, dMp = 0, dHero = 0;
+  for (const e of activeEffects) {
+    if (e.type !== "stat") continue;
+    const val = Number(e.value) || 0;
+    if (e.target === "max_hp") dHp += val;
+    else if (e.target === "max_mp") dMp += val;
+    else if (e.target === "max_heroic") dHero += val;
+  }
+
   return {
-    hpMax:
-      v + level + vDice + (char.hp.vocationBonus || 0) + (char.hp.bonus || 0),
-    mpMax:
-      m + level + mDice + (char.mp.vocationBonus || 0) + (char.mp.bonus || 0),
-    heroicMax: Math.max(0, level + (char.heroicBonus || 0)),
+    hpMax: Math.max(
+      0,
+      v + level + vDice + (char.hp.vocationBonus || 0) + (char.hp.bonus || 0) + dHp,
+    ),
+    mpMax: Math.max(
+      0,
+      m + level + mDice + (char.mp.vocationBonus || 0) + (char.mp.bonus || 0) + dMp,
+    ),
+    heroicMax: Math.max(0, level + (char.heroicBonus || 0) + dHero),
   };
 }
 

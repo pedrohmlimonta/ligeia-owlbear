@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, createContext, useContext } from "react";
 import {
   loadCharacters,
   saveCharacterToRoom,
@@ -21,9 +21,12 @@ import { rollLigeia } from "../lib/dice.js";
 import {
   collectActiveEffects,
   getRollModifiers,
+  getStatModifiers,
   summarizeEffects,
   isItemActive,
-  EFFECT_TARGETS,
+  isEffectEnabled,
+  EFFECT_ROLL_TARGETS,
+  EFFECT_STAT_TARGETS,
   EFFECT_TYPES,
 } from "../lib/effects.js";
 import {
@@ -35,6 +38,11 @@ import {
 } from "../data/character.js";
 import { ARCANE_WORDS } from "../data/magicWords.js";
 import { DiceTray } from "./Die3D.jsx";
+
+// Context para propagar permissão de edição estrutural (somente GM).
+// Jogadores ainda podem alterar toggles (active/enabled) - estes não
+// dependem do contexto, são sempre clicáveis.
+const EditPermContext = createContext(true);
 
 export function CharacterSheet({ characterId }) {
   const [character, setCharacter] = useState(null);
@@ -75,14 +83,17 @@ export function CharacterSheet({ characterId }) {
     });
   }, [character?.tokenId]);
 
-  // Salvamento automático (debounced) — apenas se podemos editar
+  // Salvamento automático (debounced)
+  // Jogadores podem alterar toggles (efeitos ativáveis), então também
+  // salvam. Edição de campos sensíveis é bloqueada via UI (canEdit + CSS).
   useEffect(() => {
-    if (!character || loading || !canEdit) return;
+    if (!character || loading) return;
     const t = setTimeout(() => {
       saveCharacterToRoom(character);
       // Atualiza barras no token vinculado, se houver
       if (character.tokenId) {
-        const res = deriveResources(character);
+        const eff = collectActiveEffects(character);
+        const res = deriveResources(character, eff);
         updateTokenBars(
           character.tokenId,
           character.id,
@@ -96,7 +107,7 @@ export function CharacterSheet({ characterId }) {
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [character, loading, canEdit]);
+  }, [character, loading]);
 
   // Auto-dismiss do toast de rolagem
   useEffect(() => {
@@ -149,12 +160,15 @@ export function CharacterSheet({ characterId }) {
   };
 
   const secondary = useMemo(
-    () => (character ? deriveSecondary(character) : null),
-    [character],
+    () => (character ? deriveSecondary(character, activeEffects) : null),
+    [character, activeEffects],
   );
   const resources = useMemo(
-    () => (character ? deriveResources(character) : { hpMax: 0, mpMax: 0 }),
-    [character],
+    () =>
+      character
+        ? deriveResources(character, activeEffects)
+        : { hpMax: 0, mpMax: 0, heroicMax: 0 },
+    [character, activeEffects],
   );
 
   if (loading) {
@@ -184,6 +198,7 @@ export function CharacterSheet({ characterId }) {
   }
 
   return (
+    <EditPermContext.Provider value={canEdit}>
     <div className={"sheet " + (canEdit ? "" : "sheet-readonly")}>
       {/* Toast de rolagem */}
       {rollToast && (
@@ -535,7 +550,7 @@ export function CharacterSheet({ characterId }) {
               )
             }
             derived={[
-              { label: "Iniciativa", value: secondary.iniciativa.value, onRoll: () => rollWith("Iniciativa", secondary.iniciativa.value, secondary.iniciativa.dice, 0, { attribute: "percepcao" }) },
+              { label: "Iniciativa", value: secondary.iniciativa.value, onRoll: () => rollWith("Iniciativa", secondary.iniciativa.value, secondary.iniciativa.dice, 0, { attribute: "percepcao", isInitiative: true }) },
               { label: "Percepção Passiva", value: secondary.percepcaoPassiva.value, onRoll: null },
             ]}
           />
@@ -636,6 +651,7 @@ export function CharacterSheet({ characterId }) {
       {/* Magia */}
       <MagicSection character={character} onChange={update} onRoll={rollWith} />
     </div>
+    </EditPermContext.Provider>
   );
 }
 
@@ -716,6 +732,7 @@ function ResourceInput({ current, max, onChange, bonus, onBonusChange, showBonus
           type="number"
           value={current}
           onChange={(e) => onChange(Number(e.target.value))}
+          className="player-editable"
           style={{
             width: 50,
             textAlign: "center",
@@ -1186,14 +1203,13 @@ function MagicSection({ character, onChange, onRoll }) {
    Sistema de Efeitos: modo passivo/ativo + editor de efeitos + painel resumo
    ========================================================================= */
 
-function ActiveToggle({ mode, active, onChange, compact = false }) {
+function ActiveToggle({ mode, active, onChange, compact = false, canEdit = true }) {
   const isActive = mode === "active";
   const handleMode = () => {
+    if (!canEdit) return;
     if (isActive) {
-      // volta para passiva
       onChange({ mode: "passive", active: false });
     } else {
-      // muda para ativa (desligada por padrão)
       onChange({ mode: "active", active: false });
     }
   };
@@ -1204,7 +1220,12 @@ function ActiveToggle({ mode, active, onChange, compact = false }) {
       <button
         onClick={handleMode}
         className="mode-pill mode-passive"
-        title="Atualmente passivo - clique para tornar ativável"
+        title={
+          canEdit
+            ? "Atualmente passivo - clique para tornar ativável"
+            : "Efeito passivo (sempre em uso)"
+        }
+        disabled={!canEdit}
       >
         {compact ? "P" : "Passivo"}
       </button>
@@ -1220,23 +1241,25 @@ function ActiveToggle({ mode, active, onChange, compact = false }) {
       >
         {active ? (compact ? "ON" : "Ativado") : (compact ? "off" : "Ativável")}
       </button>
-      <button
-        onClick={handleMode}
-        className="mode-revert"
-        title="Voltar para passivo"
-      >
-        ↺
-      </button>
+      {canEdit && (
+        <button
+          onClick={handleMode}
+          className="mode-revert"
+          title="Voltar para passivo"
+        >
+          ↺
+        </button>
+      )}
     </div>
   );
 }
 
-function EffectsEditor({ effects, onChange }) {
+function EffectsEditor({ effects, onChange, canEdit = true }) {
   const list = effects || [];
   const addEffect = () => {
     onChange([
       ...list,
-      { type: "bonus", target: "all", value: 1, label: "" },
+      { type: "bonus", target: "all", value: 1, label: "", enabled: true },
     ]);
   };
   const updateEffect = (i, patch) => {
@@ -1248,33 +1271,69 @@ function EffectsEditor({ effects, onChange }) {
     onChange(list.filter((_, idx) => idx !== i));
   };
 
+  // Quando o tipo muda, ajusta o target default para algo válido
+  const onTypeChange = (i, newType) => {
+    const e = list[i];
+    let target = e.target;
+    if (newType === "stat") {
+      if (!EFFECT_STAT_TARGETS.find((t) => t.id === target)) target = "max_hp";
+    } else if (newType === "dice" || newType === "bonus") {
+      if (!EFFECT_ROLL_TARGETS.find((t) => t.id === target)) target = "all";
+    }
+    updateEffect(i, { type: newType, target });
+  };
+
   return (
     <div className="effects-editor">
       {list.length === 0 && (
         <div className="tiny muted effects-empty">Nenhum efeito.</div>
       )}
       {list.map((e, i) => {
+        const enabled = isEffectEnabled(e);
         const isInfo = e.type === "info";
-        const isInfoTarget = e.type === "damage" || e.type === "rd" || e.type === "info";
+        const isStat = e.type === "stat";
+        const isRoll = e.type === "dice" || e.type === "bonus";
+        const hasTarget = isRoll || isStat;
+        const targets = isStat ? EFFECT_STAT_TARGETS : EFFECT_ROLL_TARGETS;
         return (
-          <div key={i} className="effect-row">
+          <div
+            key={i}
+            className={"effect-row " + (enabled ? "" : "effect-disabled")}
+          >
+            <button
+              className={"effect-enable-btn " + (enabled ? "on" : "off")}
+              onClick={() => updateEffect(i, { enabled: !enabled })}
+              title={
+                enabled
+                  ? "Efeito ATIVO — clique para desligar"
+                  : "Efeito DESLIGADO — clique para ligar"
+              }
+            >
+              {enabled ? "●" : "○"}
+            </button>
             <select
               value={e.type}
-              onChange={(ev) => updateEffect(i, { type: ev.target.value })}
+              onChange={(ev) => onTypeChange(i, ev.target.value)}
               title="Tipo de efeito"
+              disabled={!canEdit}
             >
               {EFFECT_TYPES.map((t) => (
-                <option key={t.id} value={t.id}>{t.label}</option>
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
               ))}
             </select>
-            {!isInfoTarget && (
+            {hasTarget && (
               <select
                 value={e.target}
                 onChange={(ev) => updateEffect(i, { target: ev.target.value })}
                 title="Alvo do efeito"
+                disabled={!canEdit}
               >
-                {EFFECT_TARGETS.map((t) => (
-                  <option key={t.id} value={t.id}>{t.label}</option>
+                {targets.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
                 ))}
               </select>
             )}
@@ -1282,41 +1341,50 @@ function EffectsEditor({ effects, onChange }) {
               <input
                 type="number"
                 value={e.value}
-                onChange={(ev) => updateEffect(i, { value: Number(ev.target.value) })}
+                onChange={(ev) =>
+                  updateEffect(i, { value: Number(ev.target.value) })
+                }
                 className="effect-value"
                 title="Valor"
+                disabled={!canEdit}
               />
             )}
             <input
               type="text"
               value={e.label || ""}
               onChange={(ev) => updateEffect(i, { label: ev.target.value })}
-              placeholder={isInfo ? "Descreva a condição..." : "Nota (opcional)"}
+              placeholder={
+                isInfo ? "Descreva a condição..." : "Nota (opcional)"
+              }
               className="effect-label"
+              disabled={!canEdit}
             />
-            <button
-              className="danger"
-              onClick={() => removeEffect(i)}
-              style={{ padding: "0.2rem 0.35rem", fontSize: "0.65rem" }}
-              title="Remover efeito"
-            >
-              ✕
-            </button>
+            {canEdit && (
+              <button
+                className="danger"
+                onClick={() => removeEffect(i)}
+                style={{ padding: "0.2rem 0.35rem", fontSize: "0.65rem" }}
+                title="Remover efeito"
+              >
+                ✕
+              </button>
+            )}
           </div>
         );
       })}
-      <button
-        onClick={addEffect}
-        className="effect-add-btn"
-      >
-        + Adicionar efeito
-      </button>
+      {canEdit && (
+        <button onClick={addEffect} className="effect-add-btn">
+          + Adicionar efeito
+        </button>
+      )}
     </div>
   );
 }
 
 function ItemEffectsBlock({ item, onChange }) {
-  const [open, setOpen] = useState(false);
+  const canEdit = useContext(EditPermContext);
+  // Aberto por padrão quando tem efeitos (para o jogador ver o toggle).
+  const [open, setOpen] = useState((item.effects || []).length > 0);
   const count = (item.effects || []).length;
   const active = isItemActive(item);
   const hasEffects = count > 0;
@@ -1329,6 +1397,7 @@ function ItemEffectsBlock({ item, onChange }) {
           active={item.active}
           onChange={(patch) => onChange(patch)}
           compact
+          canEdit={canEdit}
         />
         <button
           className="effects-toggle"
@@ -1343,6 +1412,7 @@ function ItemEffectsBlock({ item, onChange }) {
         <EffectsEditor
           effects={item.effects || []}
           onChange={(effects) => onChange({ effects })}
+          canEdit={canEdit}
         />
       )}
     </div>
@@ -1350,12 +1420,21 @@ function ItemEffectsBlock({ item, onChange }) {
 }
 
 function ActiveModifiersPanel({ summary }) {
-  const { rollBuckets, damageBonus, damageParts, damageReduction, rdParts, conditions } = summary;
+  const {
+    rollBuckets,
+    damageBonus,
+    damageParts,
+    damageReduction,
+    rdParts,
+    conditions,
+    stats,
+  } = summary;
   const empty =
     rollBuckets.length === 0 &&
     damageParts.length === 0 &&
     rdParts.length === 0 &&
-    conditions.length === 0;
+    conditions.length === 0 &&
+    (stats || []).length === 0;
 
   if (empty) return null;
 
@@ -1371,6 +1450,16 @@ function ActiveModifiersPanel({ summary }) {
             {b.dice ? <span className="mod-dice">+{b.dice}D</span> : null}
             {b.bonus ? <span className="mod-bonus">{b.bonus >= 0 ? "+" : ""}{b.bonus}</span> : null}
             <span className="mod-parts">{b.parts.join(" · ")}</span>
+          </div>
+        ))}
+        {(stats || []).map((s, i) => (
+          <div key={`stat-${i}`} className="mod-line">
+            <strong>{s.label}:</strong>{" "}
+            <span className="mod-bonus">
+              {s.delta >= 0 ? "+" : ""}
+              {s.delta}
+            </span>
+            <span className="mod-parts">{s.parts.join(" · ")}</span>
           </div>
         ))}
         {damageParts.length > 0 && (
@@ -1412,7 +1501,8 @@ function GmControls({ character, tokenName, onUpdate }) {
   const [linking, setLinking] = useState(false);
 
   const pushBars = (tokenId) => {
-    const res = deriveResources(character);
+    const eff = collectActiveEffects(character);
+    const res = deriveResources(character, eff);
     updateTokenBars(
       tokenId,
       character.id,

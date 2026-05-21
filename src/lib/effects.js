@@ -1,33 +1,37 @@
 // ===========================================================================
 // Sistema de efeitos / modificadores
 //
-// Cada habilidade, equipamento e magia base pode declarar um conjunto de
-// efeitos que somam (ou subtraem) algo quando o item está ATIVO:
-// - Itens passivos (mode = "passive") estão sempre ativos.
-// - Itens ativos (mode = "active") só contam quando active === true.
+// Cada habilidade, equipamento e magia base pode declarar uma lista de
+// efeitos. Cada efeito está "em uso" quando:
+//   - O item que o contém está ativo (passive sempre, ou active && active=true)
+//   - E o próprio efeito não está desligado pelo jogador (enabled !== false)
 //
-// Modelo de um efeito:
-//   { type, target, value, label }
+// Modelo de efeito:
+//   { type, target, value, label, enabled }
 //
-//   type:    "dice"  → soma N dados de melhoria na rolagem-alvo
-//            "bonus" → soma N ao bônus (valor) da rolagem-alvo
-//            "damage"→ soma N ao dano causado (informativo, exibido no painel)
-//            "rd"    → redução de dano recebido (informativo, exibido)
-//            "info"  → texto livre/condição (apenas exibido)
+//   type:    "dice"   — +N dados de melhoria na rolagem alvo
+//            "bonus"  — +N ao valor da rolagem alvo
+//            "damage" — +N ao dano (informativo + somado no painel)
+//            "rd"     — redução de dano (informativo + somado no painel)
+//            "stat"   — modifica um valor derivado (max_hp, max_mp, etc.)
+//            "info"   — texto livre / condição (exibido)
 //
-//   target:  "all"           → qualquer rolagem
-//            "forca" | "agilidade" | "vigor" | "mente" | "percepcao"
-//                             → rolagens cujo atributo é esse
-//            "attack"         → todas as rolagens de ataque
-//            "defense"        → defesas (bloqueio/esquiva — exibido)
-//            "skill:<nome>"   → uma habilidade específica
+//   target:  Para "dice" e "bonus":
+//              "all", "forca", "agilidade", "vigor", "mente", "percepcao",
+//              "attack", "defense", "initiative", "skill:<nome>"
+//            Para "stat":
+//              "max_hp", "max_mp", "max_heroic", "initiative",
+//              "defense", "deslocamento"
+//            Outros tipos ignoram target.
 //
-//   value:   número (ignorado para type=info)
-//   label:   descrição livre / condição (opcional)
+//   value:   número (ignorado para "info")
+//   label:   texto livre/condição (opcional)
+//   enabled: undefined → tratado como true. Quando false, o jogador
+//            desligou esse efeito específico, mesmo com o item ativo.
 // ===========================================================================
 
-/** Lista de targets exibida no editor */
-export const EFFECT_TARGETS = [
+/** Lista de targets para efeitos de ROLAGEM (dice/bonus) */
+export const EFFECT_ROLL_TARGETS = [
   { id: "all", label: "Qualquer rolagem" },
   { id: "forca", label: "Rolagens de Força" },
   { id: "agilidade", label: "Rolagens de Agilidade" },
@@ -36,61 +40,66 @@ export const EFFECT_TARGETS = [
   { id: "percepcao", label: "Rolagens de Percepção" },
   { id: "attack", label: "Ataques (todos)" },
   { id: "defense", label: "Defesa (Bloqueio/Esquiva)" },
+  { id: "initiative", label: "Rolagem de Iniciativa" },
+];
+
+/** Lista de targets para STAT (valores derivados) */
+export const EFFECT_STAT_TARGETS = [
+  { id: "max_hp", label: "PV máximo" },
+  { id: "max_mp", label: "PM máximo" },
+  { id: "max_heroic", label: "Pontos Heroicos máx" },
+  { id: "initiative", label: "Iniciativa (valor)" },
+  { id: "defense", label: "Defesa (valor)" },
+  { id: "deslocamento", label: "Deslocamento" },
 ];
 
 /** Lista de tipos exibida no editor */
 export const EFFECT_TYPES = [
-  { id: "dice", label: "+Dados de Melhoria", suffix: "D" },
-  { id: "bonus", label: "+Bônus (valor)", suffix: "" },
-  { id: "damage", label: "Bônus de Dano", suffix: "" },
-  { id: "rd", label: "Redução de Dano", suffix: "" },
-  { id: "info", label: "Condição / Texto", suffix: "" },
+  { id: "dice", label: "+Dados de Melhoria (rolagem)" },
+  { id: "bonus", label: "+Bônus em Rolagem" },
+  { id: "stat", label: "Modificar Valor (PV/PM/...)" },
+  { id: "damage", label: "Bônus de Dano" },
+  { id: "rd", label: "Redução de Dano" },
+  { id: "info", label: "Condição / Texto" },
 ];
 
-/** Item está atualmente em efeito? */
+/** Item está ativo (modo passivo sempre, ativo só se ligado)? */
 export function isItemActive(item) {
   if (!item) return false;
   if (item.mode === "active") return !!item.active;
-  return true; // passive (default)
+  return true; // passive
+}
+
+/** Efeito individual está habilitado pelo jogador? */
+export function isEffectEnabled(effect) {
+  // Se enabled não existe (efeito antigo), trata como true
+  return effect && effect.enabled !== false;
 }
 
 /**
- * Coleta TODOS os efeitos ativos do personagem, com info de origem.
- * Retorna array de: { ...effect, source: string, kind: "skill"|"equipment"|"spell" }
+ * Coleta TODOS os efeitos atualmente em uso, com info de origem.
+ * Considera tanto o estado do item quanto o `enabled` por efeito.
  */
 export function collectActiveEffects(character) {
   if (!character) return [];
   const out = [];
+  const push = (item, kind, label) => {
+    if (!isItemActive(item)) return;
+    for (const e of item.effects || []) {
+      if (!isEffectEnabled(e)) continue;
+      out.push({ ...e, source: item.name || item.base || label, kind });
+    }
+  };
 
-  for (const s of character.skills || []) {
-    if (!isItemActive(s)) continue;
-    for (const e of s.effects || []) {
-      out.push({ ...e, source: s.name || "Habilidade", kind: "skill" });
-    }
-  }
-  for (const it of character.equipment || []) {
-    if (!isItemActive(it)) continue;
-    for (const e of it.effects || []) {
-      out.push({ ...e, source: it.name || "Equipamento", kind: "equipment" });
-    }
-  }
-  for (const sp of (character.magic && character.magic.grimoire) || []) {
-    if (!isItemActive(sp)) continue;
-    for (const e of sp.effects || []) {
-      out.push({ ...e, source: sp.base || "Magia", kind: "spell" });
-    }
-  }
+  for (const s of character.skills || []) push(s, "skill", "Habilidade");
+  for (const it of character.equipment || []) push(it, "equipment", "Equipamento");
+  for (const sp of (character.magic && character.magic.grimoire) || [])
+    push(sp, "spell", "Magia");
   return out;
 }
 
 /**
  * Dado um contexto de rolagem, retorna o quanto somar de dados e de bônus.
- *
- * ctx = {
- *   attribute?: "forca" | ...    // se a rolagem usa um atributo
- *   isAttack?: boolean           // se é uma rolagem de ataque
- *   skillName?: string           // se é uma rolagem de habilidade nomeada
- * }
  */
 export function getRollModifiers(activeEffects, ctx = {}) {
   let dice = 0;
@@ -99,7 +108,7 @@ export function getRollModifiers(activeEffects, ctx = {}) {
 
   for (const e of activeEffects) {
     if (e.type !== "dice" && e.type !== "bonus") continue;
-    if (!matchesContext(e.target, ctx)) continue;
+    if (!matchesRollContext(e.target, ctx)) continue;
 
     const v = Number(e.value) || 0;
     if (e.type === "dice") dice += v;
@@ -111,26 +120,41 @@ export function getRollModifiers(activeEffects, ctx = {}) {
       label: e.label,
     });
   }
-
   return { dice, bonus, sources };
 }
 
-function matchesContext(target, ctx) {
+function matchesRollContext(target, ctx) {
   if (!target || target === "all") return true;
   if (target === "attack" && ctx.isAttack) return true;
+  if (target === "initiative" && ctx.isInitiative) return true;
+  if (target === "defense" && ctx.isDefense) return true;
   if (ctx.attribute && target === ctx.attribute) return true;
   if (ctx.skillName && target === `skill:${ctx.skillName}`) return true;
   return false;
 }
 
 /**
- * Para o painel de "Modificadores Ativos": agrega efeitos por categoria
- * em buckets de exibição.
+ * Agrega efeitos do tipo "stat" para um determinado valor derivado.
+ * statKey: "max_hp" | "max_mp" | "max_heroic" | "initiative" | "defense" | "deslocamento"
+ * Retorna { delta, sources: [...] }
+ */
+export function getStatModifiers(activeEffects, statKey) {
+  let delta = 0;
+  const sources = [];
+  for (const e of activeEffects) {
+    if (e.type !== "stat") continue;
+    if (e.target !== statKey) continue;
+    const v = Number(e.value) || 0;
+    delta += v;
+    sources.push({ source: e.source, value: v, label: e.label });
+  }
+  return { delta, sources };
+}
+
+/**
+ * Painel "Modificadores Ativos": agrega tudo para exibição.
  */
 export function summarizeEffects(activeEffects) {
-  const buckets = []; // [{ label, parts: ["+1D (Espada)", ...] }]
-
-  // Buckets de rolagem
   const rollBuckets = {
     all: { label: "Qualquer rolagem", dice: 0, bonus: 0, parts: [] },
     forca: { label: "Força", dice: 0, bonus: 0, parts: [] },
@@ -140,6 +164,7 @@ export function summarizeEffects(activeEffects) {
     percepcao: { label: "Percepção", dice: 0, bonus: 0, parts: [] },
     attack: { label: "Ataques", dice: 0, bonus: 0, parts: [] },
     defense: { label: "Defesa", dice: 0, bonus: 0, parts: [] },
+    initiative: { label: "Iniciativa", dice: 0, bonus: 0, parts: [] },
   };
 
   let damageBonus = 0;
@@ -147,6 +172,7 @@ export function summarizeEffects(activeEffects) {
   let damageReduction = 0;
   const rdParts = [];
   const conditions = [];
+  const statBuckets = {}; // key -> { label, delta, parts }
 
   for (const e of activeEffects) {
     if (e.type === "dice" || e.type === "bonus") {
@@ -159,7 +185,6 @@ export function summarizeEffects(activeEffects) {
         else target.bonus += v;
         target.parts.push(formatPart(e));
       } else if (e.target?.startsWith("skill:")) {
-        // adiciona como parte solta
         const sname = e.target.slice(6);
         rollBuckets.all.parts.push(`${formatPart(e)} em ${sname}`);
       }
@@ -169,18 +194,24 @@ export function summarizeEffects(activeEffects) {
     } else if (e.type === "rd") {
       damageReduction += Number(e.value) || 0;
       rdParts.push(formatPart(e));
+    } else if (e.type === "stat") {
+      const key = e.target || "max_hp";
+      const lbl = STAT_LABELS[key] || key;
+      const bucket = statBuckets[key] || { label: lbl, delta: 0, parts: [] };
+      bucket.delta += Number(e.value) || 0;
+      bucket.parts.push(formatPart(e));
+      statBuckets[key] = bucket;
     } else if (e.type === "info") {
-      conditions.push({
-        text: e.label || "—",
-        source: e.source,
-      });
+      conditions.push({ text: e.label || "—", source: e.source });
     }
   }
 
+  const buckets = [];
   for (const k of Object.keys(rollBuckets)) {
     const b = rollBuckets[k];
     if (b.dice || b.bonus || b.parts.length) buckets.push(b);
   }
+  const stats = Object.values(statBuckets);
 
   return {
     rollBuckets: buckets,
@@ -189,17 +220,28 @@ export function summarizeEffects(activeEffects) {
     damageReduction,
     rdParts,
     conditions,
+    stats,
   };
 }
+
+const STAT_LABELS = {
+  max_hp: "PV máximo",
+  max_mp: "PM máximo",
+  max_heroic: "Pontos Heroicos máx",
+  initiative: "Iniciativa",
+  defense: "Defesa",
+  deslocamento: "Deslocamento",
+};
 
 function formatPart(e) {
   const v = Number(e.value) || 0;
   const sign = v >= 0 ? "+" : "";
-  let prefix = "";
+  let prefix;
   if (e.type === "dice") prefix = `${sign}${v}D`;
   else if (e.type === "bonus") prefix = `${sign}${v}`;
   else if (e.type === "damage") prefix = `${sign}${v} dano`;
   else if (e.type === "rd") prefix = `${sign}${v} RD`;
+  else if (e.type === "stat") prefix = `${sign}${v}`;
   else prefix = e.label || "—";
   const src = e.source ? ` (${e.source})` : "";
   return `${prefix}${src}`;
