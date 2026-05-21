@@ -18,6 +18,7 @@ import {
 } from "../lib/obr.js";
 import { createBlankCharacter, migrateCharacter } from "../lib/character.js";
 import { formatRoll } from "../lib/dice.js";
+import { parseImportedJson, readFileAsText } from "../lib/importExport.js";
 
 export function Popover() {
   const [characters, setCharacters] = useState({});
@@ -144,6 +145,18 @@ export function Popover() {
     openCharacterSheet(c.id);
   };
 
+  const handleImportNewCharacter = async (imported) => {
+    // Cria uma ficha NOVA a partir do JSON (id novo, sem token, sem dono)
+    const fresh = {
+      ...imported,
+      id: crypto.randomUUID(),
+      playerId: null,
+      tokenIds: [],
+    };
+    await saveCharacterToRoom(fresh);
+    openCharacterSheet(fresh.id);
+  };
+
   const handleDelete = async (id, name) => {
     if (!confirm(`Excluir "${name}"? Isso não pode ser desfeito.`)) return;
     const ch = characters[id];
@@ -193,9 +206,12 @@ export function Popover() {
 
       <div className="row gap-2 mt-2" style={{ marginBottom: "0.75rem" }}>
         {isGM && (
-          <button className="primary flex-1" onClick={() => handleCreate(false)}>
-            + Personagem
-          </button>
+          <>
+            <button className="primary flex-1" onClick={() => handleCreate(false)}>
+              + Personagem
+            </button>
+            <PopoverImportButton onImport={handleImportNewCharacter} />
+          </>
         )}
         <button className="flex-1" onClick={openDiceRoller}>
           🎲 Dados
@@ -376,5 +392,38 @@ function CharSection({
         </ul>
       )}
     </div>
+  );
+}
+
+function PopoverImportButton({ onImport }) {
+  const handleChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const text = await readFileAsText(file);
+      const imported = parseImportedJson(text, {
+        regenerateId: true,
+        clearOwner: true,
+      });
+      await onImport(imported);
+    } catch (err) {
+      alert("Falha ao importar:\n" + (err?.message || err));
+    }
+  };
+
+  return (
+    <label
+      className="popover-import-btn flex-1"
+      title="Criar uma nova ficha a partir de um arquivo JSON"
+    >
+      ⬆ Importar
+      <input
+        type="file"
+        accept="application/json,.json"
+        onChange={handleChange}
+        style={{ display: "none" }}
+      />
+    </label>
   );
 }

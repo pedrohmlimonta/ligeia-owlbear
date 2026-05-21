@@ -814,7 +814,7 @@
 /* Botões que NÃO são de rolagem ou toggle ficam desabilitados em readonly.
    Mantemos clicáveis: rolagens (attribute-circle, attack-bonus-circle, skill-checkbox),
    e toggles de combate (mode-pill ativo, effect-enable-btn, effects-toggle). */
-.sheet-readonly button:not(.attribute-circle):not(.attack-bonus-circle):not(.dismiss):not(.skill-checkbox):not(.word-chip-mark):not(.mode-pill):not(.effect-enable-btn):not(.effects-toggle) {
+.sheet-readonly button:not(.attribute-circle):not(.attack-bonus-circle):not(.dismiss):not(.skill-checkbox):not(.word-chip-mark):not(.mode-pill):not(.effect-enable-btn):not(.effects-toggle):not(.export-btn) {
   display: none !important;
 }
 
@@ -1002,4 +1002,38 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Import button (label estilizado como botão) */
+.import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.65rem;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: border-color 120ms, color 120ms;
+}
+
+.import-btn:hover {
+  border-color: var(--gold-soft);
+  color: var(--gold);
+}
+
+/* No modo readonly, esconde import e mostra só export */
+.sheet-readonly .import-btn { display: none; }
+
+/* Toolbar com gap consistente */
+.sheet-toolbar {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
 }

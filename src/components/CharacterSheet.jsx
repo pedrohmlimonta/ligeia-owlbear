@@ -32,6 +32,12 @@ import {
   EFFECT_TYPES,
 } from "../lib/effects.js";
 import {
+  downloadCharacterJson,
+  parseImportedJson,
+  readFileAsText,
+} from "../lib/importExport.js";
+import { openPrintableSheet } from "../lib/pdfExport.js";
+import {
   RACES,
   HERITAGES,
   VOCATIONS,
@@ -361,6 +367,40 @@ export function CharacterSheet({ characterId }) {
         </div>
         <div className="sheet-toolbar">
           <button onClick={() => saveCharacterToRoom(character)}>Salvar</button>
+          {canEdit && (
+            <ImportButton
+              onImport={async (imported) => {
+                // Substitui o conteúdo da ficha atual (mantém id/playerId/tokenIds)
+                const next = {
+                  ...imported,
+                  id: character.id,
+                  playerId: character.playerId,
+                  tokenIds: character.tokenIds || [],
+                };
+                setCharacter(next);
+                await saveCharacterToRoom(next);
+                alert("Ficha importada com sucesso!");
+              }}
+            />
+          )}
+          {(isGM || character.playerId === myId) && (
+            <>
+              <button
+                onClick={() => downloadCharacterJson(character)}
+                title="Baixar JSON com todos os dados da ficha"
+                className="export-btn"
+              >
+                ⬇ JSON
+              </button>
+              <button
+                onClick={() => openPrintableSheet(character)}
+                title="Abrir versão pronta para imprimir ou salvar como PDF"
+                className="export-btn"
+              >
+                ⬇ PDF
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -1719,5 +1759,41 @@ function TokenList({ tokenIds, onRemove }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/* =========================================================================
+   Botão de importação JSON (com input file escondido)
+   ========================================================================= */
+function ImportButton({ onImport }) {
+  const handleChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite re-selecionar o mesmo arquivo depois
+    if (!file) return;
+    if (!confirm(
+      "Importar substituirá os dados atuais da ficha por aqueles do arquivo. " +
+        "O ID, vínculo com jogador e tokens serão preservados.\n\nContinuar?",
+    )) {
+      return;
+    }
+    try {
+      const text = await readFileAsText(file);
+      const imported = parseImportedJson(text);
+      await onImport(imported);
+    } catch (err) {
+      alert("Falha ao importar:\n" + (err?.message || err));
+    }
+  };
+
+  return (
+    <label className="import-btn" title="Carregar dados de um arquivo JSON">
+      ⬆ JSON
+      <input
+        type="file"
+        accept="application/json,.json"
+        onChange={handleChange}
+        style={{ display: "none" }}
+      />
+    </label>
   );
 }
