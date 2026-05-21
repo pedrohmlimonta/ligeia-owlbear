@@ -40,6 +40,7 @@ export function createBlankCharacter(name = "Novo Personagem") {
     corruption: 5,
     personality: "",
     heroicPoints: 1,
+    heroicBonus: 0, // ajuste do Narrador no máximo de pontos heroicos
 
     // Atributos primários (entre 2 e 5, total inicial = 15)
     attributes: {
@@ -63,8 +64,9 @@ export function createBlankCharacter(name = "Novo Personagem") {
     },
 
     // Recursos
-    hp: { current: 0, max: 0, vocationBonus: 0 },
-    mp: { current: 0, max: 0, vocationBonus: 0 },
+    // `bonus` é um ajuste manual do Narrador (negativo ou positivo)
+    hp: { current: 0, max: 0, vocationBonus: 0, bonus: 0 },
+    mp: { current: 0, max: 0, vocationBonus: 0, bonus: 0 },
 
     // Habilidades (cada uma com nível B/A/E + modo/efeitos)
     skills: [], // [{ name, level, attribute, mode, active, effects: [...] }]
@@ -120,8 +122,8 @@ export function deriveSecondary(char) {
 
 /**
  * Calcula PV e PM máximos conforme regras:
- *   PV máx = Vigor + Nível + dado de melhoria de Vigor + bônus de vocação
- *   PM máx = Mente + Nível + dado de melhoria de Mente + bônus de vocação
+ *   PV máx = Vigor + Nível + dado de melhoria de Vigor + bônus de vocação + bônus do Narrador
+ *   PM máx = Mente + Nível + dado de melhoria de Mente + bônus de vocação + bônus do Narrador
  */
 export function deriveResources(char) {
   const v = char.attributes.vigor.value;
@@ -130,8 +132,11 @@ export function deriveResources(char) {
   const mDice = char.attributes.mente.dice;
   const level = char.level || 1;
   return {
-    hpMax: v + level + vDice + (char.hp.vocationBonus || 0),
-    mpMax: m + level + mDice + (char.mp.vocationBonus || 0),
+    hpMax:
+      v + level + vDice + (char.hp.vocationBonus || 0) + (char.hp.bonus || 0),
+    mpMax:
+      m + level + mDice + (char.mp.vocationBonus || 0) + (char.mp.bonus || 0),
+    heroicMax: Math.max(0, level + (char.heroicBonus || 0)),
   };
 }
 
@@ -145,6 +150,9 @@ export function migrateCharacter(char) {
   // Novos campos com defaults
   if (typeof c.npc !== "boolean") c.npc = false;
   if (typeof c.tokenId === "undefined") c.tokenId = null;
+  if (typeof c.heroicBonus !== "number") c.heroicBonus = 0;
+  if (c.hp && typeof c.hp.bonus !== "number") c.hp = { ...c.hp, bonus: 0 };
+  if (c.mp && typeof c.mp.bonus !== "number") c.mp = { ...c.mp, bonus: 0 };
 
   // Helper para adicionar campos de efeitos a um item
   const withEffects = (item) => ({

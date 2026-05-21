@@ -10,6 +10,7 @@ import {
   isInsideOBR,
   onRoleChange,
   unlinkItem,
+  removeTokenBars,
 } from "../lib/obr.js";
 import { createBlankCharacter } from "../lib/character.js";
 import { formatRoll } from "../lib/dice.js";
@@ -51,6 +52,7 @@ export function Popover() {
     if (!confirm(`Excluir "${name}"? Isso não pode ser desfeito.`)) return;
     const ch = characters[id];
     if (ch?.tokenId) {
+      await removeTokenBars(id);
       await unlinkItem(ch.tokenId);
     }
     await deleteCharacter(id);

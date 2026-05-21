@@ -889,3 +889,21 @@
   font-size: 0.82rem;
   margin-bottom: 0.3rem;
 }
+
+/* Bônus/penalidade do GM em recursos */
+.resource-bonus {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.1rem;
+}
+
+.resource-bonus-input {
+  width: 42px !important;
+  font-size: 0.72rem !important;
+  padding: 0.15rem 0.25rem !important;
+  text-align: center !important;
+  background: rgba(139, 42, 42, 0.08) !important;
+  border: 1px solid #8b2a2a55 !important;
+  color: var(--text-soft) !important;
+}

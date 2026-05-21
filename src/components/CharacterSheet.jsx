@@ -8,6 +8,8 @@ import {
   linkCharacterToItem,
   unlinkItem,
   getItemById,
+  updateTokenBars,
+  removeTokenBars,
 } from "../lib/obr.js";
 import {
   createBlankCharacter,
@@ -78,6 +80,20 @@ export function CharacterSheet({ characterId }) {
     if (!character || loading || !canEdit) return;
     const t = setTimeout(() => {
       saveCharacterToRoom(character);
+      // Atualiza barras no token vinculado, se houver
+      if (character.tokenId) {
+        const res = deriveResources(character);
+        updateTokenBars(
+          character.tokenId,
+          character.id,
+          {
+            hp: { current: character.hp.current, max: res.hpMax },
+            mp: { current: character.mp.current, max: res.mpMax },
+            hero: { current: character.heroicPoints, max: res.heroicMax },
+          },
+          !!character.npc,
+        );
+      }
     }, 400);
     return () => clearTimeout(t);
   }, [character, loading, canEdit]);
@@ -381,11 +397,13 @@ export function CharacterSheet({ characterId }) {
         </div>
         <div>
           <label>Pontos Heroicos</label>
-          <input
-            type="number"
-            min="0"
-            value={character.heroicPoints}
-            onChange={(e) => update({ heroicPoints: Number(e.target.value) })}
+          <ResourceInput
+            current={character.heroicPoints}
+            max={resources.heroicMax}
+            onChange={(v) => update({ heroicPoints: v })}
+            bonus={character.heroicBonus}
+            onBonusChange={(v) => update({ heroicBonus: v })}
+            showBonus={isGM}
           />
         </div>
       </div>
@@ -458,6 +476,11 @@ export function CharacterSheet({ characterId }) {
                     onChange={(v) =>
                       update({ hp: { ...character.hp, current: v } })
                     }
+                    bonus={character.hp.bonus}
+                    onBonusChange={(v) =>
+                      update({ hp: { ...character.hp, bonus: v } })
+                    }
+                    showBonus={isGM}
                   />
                 ),
                 onRoll: null,
@@ -484,6 +507,11 @@ export function CharacterSheet({ characterId }) {
                     onChange={(v) =>
                       update({ mp: { ...character.mp, current: v } })
                     }
+                    bonus={character.mp.bonus}
+                    onBonusChange={(v) =>
+                      update({ mp: { ...character.mp, bonus: v } })
+                    }
+                    showBonus={isGM}
                   />
                 ),
                 onRoll: null,
@@ -680,25 +708,39 @@ function AttributeBlock({ label, attr, onChange, onRoll, derived }) {
   );
 }
 
-function ResourceInput({ current, max, onChange }) {
+function ResourceInput({ current, max, onChange, bonus, onBonusChange, showBonus }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
-      <input
-        type="number"
-        value={current}
-        onChange={(e) => onChange(Number(e.target.value))}
-        style={{
-          width: 50,
-          textAlign: "center",
-          padding: "0.2rem",
-          fontSize: "0.95rem",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      />
-      <span style={{ color: "var(--text-muted)" }}>/</span>
-      <span style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>
-        {max}
-      </span>
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+        <input
+          type="number"
+          value={current}
+          onChange={(e) => onChange(Number(e.target.value))}
+          style={{
+            width: 50,
+            textAlign: "center",
+            padding: "0.2rem",
+            fontSize: "0.95rem",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+        <span style={{ color: "var(--text-muted)" }}>/</span>
+        <span style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>
+          {max}
+        </span>
+      </div>
+      {showBonus && (
+        <div className="resource-bonus" title="Bônus/penalidade ao máximo">
+          <span className="tiny muted">Ajuste:</span>
+          <input
+            type="number"
+            value={bonus || 0}
+            onChange={(e) => onBonusChange(Number(e.target.value))}
+            onClick={(e) => e.stopPropagation()}
+            className="resource-bonus-input"
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -1369,6 +1411,20 @@ function ActiveModifiersPanel({ summary }) {
 function GmControls({ character, tokenName, onUpdate }) {
   const [linking, setLinking] = useState(false);
 
+  const pushBars = (tokenId) => {
+    const res = deriveResources(character);
+    updateTokenBars(
+      tokenId,
+      character.id,
+      {
+        hp: { current: character.hp.current, max: res.hpMax },
+        mp: { current: character.mp.current, max: res.mpMax },
+        hero: { current: character.heroicPoints, max: res.heroicMax },
+      },
+      !!character.npc,
+    );
+  };
+
   const handleLink = async () => {
     setLinking(true);
     const sel = await getSelectedItemIds();
@@ -1385,16 +1441,19 @@ function GmControls({ character, tokenName, onUpdate }) {
     const itemId = sel[0];
     // se já houver vínculo, libera o anterior
     if (character.tokenId && character.tokenId !== itemId) {
+      await removeTokenBars(character.id);
       await unlinkItem(character.tokenId);
     }
     await linkCharacterToItem(itemId, character.id);
     onUpdate({ tokenId: itemId });
+    pushBars(itemId);
     setLinking(false);
   };
 
   const handleUnlink = async () => {
     if (!character.tokenId) return;
     if (!confirm("Desvincular o token desta ficha?")) return;
+    await removeTokenBars(character.id);
     await unlinkItem(character.tokenId);
     onUpdate({ tokenId: null });
   };

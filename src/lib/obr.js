@@ -6,7 +6,7 @@
 // para desenvolvimento e testes diretos no navegador.
 // ===========================================================================
 
-import OBR from "@owlbear-rodeo/sdk";
+import OBR, { buildShape } from "@owlbear-rodeo/sdk";
 
 const CHANNEL_ROLLS = "ligeia.rolls";
 const STORAGE_CHARACTERS = "ligeia.characters";
@@ -337,3 +337,151 @@ export async function registerContextMenu() {
     console.warn("Falha ao registrar context menu:", e);
   }
 }
+
+/* ============================================================================
+   Barras de status (HP, MP, Pontos Heroicos) anexadas ao token
+   ============================================================================ */
+
+const BAR_HEIGHT = 12;     // altura de cada barra (unidades da cena)
+const BAR_GAP = 2;         // espaçamento vertical
+const BAR_OFFSET_Y = 4;    // distância entre o token e a primeira barra
+
+const BAR_COLORS = {
+  hp:   { fg: "#c0392b", bg: "#2a0d0a" }, // vermelho
+  mp:   { fg: "#2980b9", bg: "#0a1a2a" }, // azul
+  hero: { fg: "#27ae60", bg: "#0e2a18" }, // verde
+};
+
+const BAR_ORDER = ["hp", "mp", "hero"];
+
+/**
+ * Atualiza (ou cria) as barras de status do token vinculado.
+ * Apaga as antigas e reconstrói com os valores atuais.
+ *
+ * `stats` é { hp:{current,max}, mp:{current,max}, hero:{current,max} }.
+ * `npc` controla visibilidade (true = só GM/dono enxerga).
+ *
+ * Apenas o GM tem permissão para escrever items na cena, então
+ * jogadores ignoram a chamada silenciosamente.
+ */
+export async function updateTokenBars(tokenId, characterId, stats, npc = false) {
+  if (!isInsideOBR() || !tokenId || !characterId || !stats) return;
+  await whenOBRReady();
+
+  // Só GM atualiza items
+  try {
+    const role = await OBR.player.getRole();
+    if (role !== "GM") return;
+  } catch {
+    return;
+  }
+
+  try {
+    // 1. Confirma que o token ainda existe
+    const tokenItems = await OBR.scene.items.getItems([tokenId]);
+    if (!tokenItems || tokenItems.length === 0) return;
+
+    // 2. Pega o bounding box (em coordenadas de cena) para posicionar
+    const bounds = await OBR.scene.items.getItemBounds([tokenId]);
+    if (!bounds) return;
+    const left = bounds.min.x;
+    const right = bounds.max.x;
+    const bottom = bounds.max.y;
+    const width = right - left;
+    if (width <= 0) return;
+
+    // 3. Remove barras antigas dessa ficha
+    await removeTokenBars(characterId);
+
+    // 4. Constrói as novas barras
+    const newItems = [];
+    BAR_ORDER.forEach((type, idx) => {
+      const st = stats[type];
+      if (!st || st.max <= 0) return; // não cria barra com max=0
+      const ratio = Math.max(0, Math.min(1, st.current / st.max));
+      const y = bottom + BAR_OFFSET_Y + idx * (BAR_HEIGHT + BAR_GAP);
+      const colors = BAR_COLORS[type];
+
+      // Fundo (sempre largura total)
+      const bg = buildShape()
+        .shapeType("RECTANGLE")
+        .position({ x: left, y })
+        .width(width)
+        .height(BAR_HEIGHT)
+        .fillColor(colors.bg)
+        .fillOpacity(0.85)
+        .strokeColor("#000000")
+        .strokeWidth(1)
+        .strokeOpacity(0.8)
+        .attachedTo(tokenId)
+        .layer("ATTACHMENT")
+        .locked(true)
+        .disableHit(true)
+        .visible(!npc) // NPCs: apenas GM vê
+        .metadata({
+          "ligeia/barOf": characterId,
+          "ligeia/barType": type,
+          "ligeia/barRole": "bg",
+        })
+        .build();
+      newItems.push(bg);
+
+      // Preenchimento proporcional
+      const fillWidth = Math.max(0.5, width * ratio); // mínimo visível
+      if (ratio > 0) {
+        const fg = buildShape()
+          .shapeType("RECTANGLE")
+          .position({ x: left, y })
+          .width(fillWidth)
+          .height(BAR_HEIGHT)
+          .fillColor(colors.fg)
+          .fillOpacity(1)
+          .strokeColor("#000000")
+          .strokeWidth(0)
+          .strokeOpacity(0)
+          .attachedTo(tokenId)
+          .layer("ATTACHMENT")
+          .locked(true)
+          .disableHit(true)
+          .visible(!npc)
+          .metadata({
+            "ligeia/barOf": characterId,
+            "ligeia/barType": type,
+            "ligeia/barRole": "fg",
+          })
+          .build();
+        newItems.push(fg);
+      }
+    });
+
+    if (newItems.length > 0) {
+      await OBR.scene.items.addItems(newItems);
+    }
+  } catch (e) {
+    console.warn("Falha ao atualizar barras do token:", e);
+  }
+}
+
+/** Remove todas as barras associadas a uma ficha. */
+export async function removeTokenBars(characterId) {
+  if (!isInsideOBR() || !characterId) return;
+  await whenOBRReady();
+  try {
+    const role = await OBR.player.getRole();
+    if (role !== "GM") return;
+  } catch {
+    return;
+  }
+  try {
+    const all = await OBR.scene.items.getItems();
+    const toRemove = all
+      .filter((it) => it.metadata?.["ligeia/barOf"] === characterId)
+      .map((it) => it.id);
+    if (toRemove.length > 0) {
+      await OBR.scene.items.deleteItems(toRemove);
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+}
+
