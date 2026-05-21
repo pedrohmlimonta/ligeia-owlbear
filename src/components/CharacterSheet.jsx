@@ -10,6 +10,8 @@ import {
   getItemById,
   updateTokenBars,
   removeTokenBars,
+  getMyPlayerId,
+  onPartyChange,
 } from "../lib/obr.js";
 import {
   createBlankCharacter,
@@ -50,9 +52,19 @@ export function CharacterSheet({ characterId }) {
   const [rollToast, setRollToast] = useState(null);
   const [role, setRole] = useState("GM");
   const [tokenName, setTokenName] = useState(null);
+  const [myId, setMyId] = useState(null);
+  const [party, setParty] = useState([]);
 
   useEffect(() => {
     return onRoleChange(setRole);
+  }, []);
+
+  useEffect(() => {
+    getMyPlayerId().then(setMyId);
+  }, []);
+
+  useEffect(() => {
+    return onPartyChange(setParty);
   }, []);
 
   const isGM = role === "GM";
@@ -72,38 +84,39 @@ export function CharacterSheet({ characterId }) {
     });
   }, [characterId]);
 
-  // Carrega o nome do token vinculado (se houver)
+  // Carrega o nome do(s) token(s) vinculado(s) — mostra o primeiro
   useEffect(() => {
-    if (!character?.tokenId) {
+    const ids = character?.tokenIds || [];
+    if (ids.length === 0) {
       setTokenName(null);
       return;
     }
-    getItemById(character.tokenId).then((item) => {
-      setTokenName(item?.name || item?.text?.plainText || "Token");
+    getItemById(ids[0]).then((item) => {
+      const baseName = item?.name || item?.text?.plainText || "Token";
+      setTokenName(
+        ids.length > 1 ? `${baseName} + ${ids.length - 1} outro(s)` : baseName,
+      );
     });
-  }, [character?.tokenId]);
+  }, [character?.tokenIds]);
 
   // Salvamento automático (debounced)
-  // Jogadores podem alterar toggles (efeitos ativáveis), então também
-  // salvam. Edição de campos sensíveis é bloqueada via UI (canEdit + CSS).
   useEffect(() => {
     if (!character || loading) return;
     const t = setTimeout(() => {
       saveCharacterToRoom(character);
-      // Atualiza barras no token vinculado, se houver
-      if (character.tokenId) {
+      // Atualiza barras em TODOS os tokens vinculados, se houver
+      const ids = character.tokenIds || [];
+      if (ids.length > 0) {
         const eff = collectActiveEffects(character);
         const res = deriveResources(character, eff);
-        updateTokenBars(
-          character.tokenId,
-          character.id,
-          {
-            hp: { current: character.hp.current, max: res.hpMax },
-            mp: { current: character.mp.current, max: res.mpMax },
-            hero: { current: character.heroicPoints, max: res.heroicMax },
-          },
-          !!character.npc,
-        );
+        const stats = {
+          hp: { current: character.hp.current, max: res.hpMax },
+          mp: { current: character.mp.current, max: res.mpMax },
+          hero: { current: character.heroicPoints, max: res.heroicMax },
+        };
+        for (const tid of ids) {
+          updateTokenBars(tid, character.id, stats, !!character.npc);
+        }
       }
     }, 400);
     return () => clearTimeout(t);
@@ -197,6 +210,21 @@ export function CharacterSheet({ characterId }) {
     );
   }
 
+  // Jogadores só podem abrir a própria ficha (atribuída a eles).
+  // Fichas sem dono permanecem bloqueadas — só o Narrador pode atribuir.
+  if (!isGM && character.playerId !== myId) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center" }} className="muted">
+        <div style={{ fontSize: "1.2rem", marginBottom: "0.5rem" }}>🔒</div>
+        <div>
+          {character.playerId
+            ? "Esta ficha pertence a outro jogador."
+            : "Esta ficha ainda não foi atribuída a você."}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <EditPermContext.Provider value={canEdit}>
     <div className={"sheet " + (canEdit ? "" : "sheet-readonly")}>
@@ -286,6 +314,19 @@ export function CharacterSheet({ characterId }) {
           {isGM && character.npc && (
             <div className="npc-header-badge">NPC (privado)</div>
           )}
+          {(() => {
+            const owner =
+              character.playerId &&
+              (party || []).find((p) => p.id === character.playerId);
+            if (owner) {
+              return (
+                <div className="owner-header-badge" title="Jogador atribuído">
+                  👤 {owner.name}
+                </div>
+              );
+            }
+            return null;
+          })()}
         </div>
         <div style={{ flex: 1 }}>
           <input
@@ -1495,10 +1536,17 @@ function ActiveModifiersPanel({ summary }) {
 }
 
 /* =========================================================================
-   Barra de controles do Narrador (NPC + vínculo com token)
+   Barra de controles do Narrador (NPC + player + tokens vinculados)
    ========================================================================= */
 function GmControls({ character, tokenName, onUpdate }) {
   const [linking, setLinking] = useState(false);
+  const [party, setParty] = useState([]);
+
+  useEffect(() => {
+    return onPartyChange(setParty);
+  }, []);
+
+  const players = party.filter((p) => p.role === "PLAYER");
 
   const pushBars = (tokenId) => {
     const eff = collectActiveEffects(character);
@@ -1515,38 +1563,50 @@ function GmControls({ character, tokenName, onUpdate }) {
     );
   };
 
-  const handleLink = async () => {
+  const handleAddTokenLink = async () => {
     setLinking(true);
     const sel = await getSelectedItemIds();
     if (sel.length === 0) {
-      alert("Nenhum token selecionado.\nSelecione um token na cena e clique novamente em Vincular.");
+      alert(
+        "Nenhum token selecionado.\nSelecione um ou mais tokens na cena e clique novamente em Adicionar.",
+      );
       setLinking(false);
       return;
     }
-    if (sel.length > 1) {
-      alert("Selecione apenas um token para vincular.");
-      setLinking(false);
-      return;
+    const current = character.tokenIds || [];
+    const next = [...current];
+    for (const itemId of sel) {
+      if (!next.includes(itemId)) {
+        next.push(itemId);
+        await linkCharacterToItem(itemId, character.id);
+        pushBars(itemId);
+      }
     }
-    const itemId = sel[0];
-    // se já houver vínculo, libera o anterior
-    if (character.tokenId && character.tokenId !== itemId) {
-      await removeTokenBars(character.id);
-      await unlinkItem(character.tokenId);
-    }
-    await linkCharacterToItem(itemId, character.id);
-    onUpdate({ tokenId: itemId });
-    pushBars(itemId);
+    onUpdate({ tokenIds: next });
     setLinking(false);
   };
 
-  const handleUnlink = async () => {
-    if (!character.tokenId) return;
-    if (!confirm("Desvincular o token desta ficha?")) return;
-    await removeTokenBars(character.id);
-    await unlinkItem(character.tokenId);
-    onUpdate({ tokenId: null });
+  const handleRemoveTokenLink = async (tokenId) => {
+    if (!confirm("Desvincular este token da ficha?")) return;
+    await unlinkItem(tokenId);
+    const next = (character.tokenIds || []).filter((id) => id !== tokenId);
+    onUpdate({ tokenIds: next });
+    // Se for o último, remove as barras
+    if (next.length === 0) {
+      await removeTokenBars(character.id);
+    }
   };
+
+  const handleClearAllTokens = async () => {
+    if (!confirm("Desvincular TODOS os tokens desta ficha?")) return;
+    for (const tid of character.tokenIds || []) {
+      await unlinkItem(tid);
+    }
+    await removeTokenBars(character.id);
+    onUpdate({ tokenIds: [] });
+  };
+
+  const tokenCount = (character.tokenIds || []).length;
 
   return (
     <div className="gm-controls">
@@ -1559,36 +1619,105 @@ function GmControls({ character, tokenName, onUpdate }) {
           />
           <span>Marcar como NPC (oculto dos jogadores)</span>
         </label>
+        {!character.npc && (
+          <div style={{ marginTop: "0.5rem" }}>
+            <div className="tiny muted" style={{ marginBottom: "0.2rem" }}>
+              Atribuir esta ficha a um jogador:
+            </div>
+            <select
+              value={character.playerId || ""}
+              onChange={(e) =>
+                onUpdate({ playerId: e.target.value || null })
+              }
+              style={{ width: "100%" }}
+            >
+              <option value="">— sem dono —</option>
+              {players.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <div className="tiny muted" style={{ marginTop: "0.25rem" }}>
+              Quando esse jogador adicionar um token à cena, ele é vinculado
+              a esta ficha automaticamente.
+            </div>
+          </div>
+        )}
       </div>
+
       <div className="gm-controls-section">
         <div className="gm-token-label">
-          Token vinculado:{" "}
-          {character.tokenId ? (
+          Tokens vinculados:{" "}
+          {tokenCount > 0 ? (
             <strong style={{ color: "var(--gold)" }}>
-              {tokenName || "—"}
+              {tokenName || "—"} ({tokenCount})
             </strong>
           ) : (
             <span className="muted">nenhum</span>
           )}
         </div>
-        <div className="row gap-2">
-          <button onClick={handleLink} disabled={linking} style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}>
-            {character.tokenId ? "🔗 Re-vincular" : "🔗 Vincular ao token selecionado"}
+        <div className="row gap-2" style={{ flexWrap: "wrap" }}>
+          <button
+            onClick={handleAddTokenLink}
+            disabled={linking}
+            style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
+          >
+            🔗 Adicionar token(s) selecionado(s)
           </button>
-          {character.tokenId && (
+          {tokenCount > 0 && (
             <button
               className="danger"
-              onClick={handleUnlink}
+              onClick={handleClearAllTokens}
               style={{ fontSize: "0.75rem", padding: "0.3rem 0.6rem" }}
             >
-              Desvincular
+              Limpar todos
             </button>
           )}
         </div>
+        {tokenCount > 0 && (
+          <TokenList
+            tokenIds={character.tokenIds}
+            onRemove={handleRemoveTokenLink}
+          />
+        )}
         <div className="tiny muted" style={{ marginTop: "0.3rem" }}>
-          Vincular permite abrir esta ficha pelo menu do token (botão direito).
+          Múltiplos tokens podem compartilhar esta ficha. Para abrir a ficha
+          pelo menu de um token vinculado, clique com o botão direito nele.
         </div>
       </div>
     </div>
+  );
+}
+
+function TokenList({ tokenIds, onRemove }) {
+  const [items, setItems] = useState({});
+  useEffect(() => {
+    (async () => {
+      const out = {};
+      for (const tid of tokenIds) {
+        const it = await getItemById(tid);
+        out[tid] = it?.name || it?.text?.plainText || "Token";
+      }
+      setItems(out);
+    })();
+  }, [tokenIds.join("|")]);
+
+  return (
+    <ul className="token-mini-list">
+      {tokenIds.map((tid) => (
+        <li key={tid}>
+          <span className="token-name">{items[tid] || "…"}</span>
+          <button
+            className="danger"
+            onClick={() => onRemove(tid)}
+            style={{ padding: "0.1rem 0.35rem", fontSize: "0.65rem" }}
+            title="Desvincular este token"
+          >
+            ✕
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }

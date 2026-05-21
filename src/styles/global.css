@@ -378,3 +378,32 @@ label {
   color: var(--gold-soft);
   font-size: 0.85rem;
 }
+
+/* Atribuição de jogador a personagem (no popover) */
+.assign-row {
+  margin-top: 0.3rem;
+  display: flex;
+  align-items: center;
+}
+
+.assign-row select {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.3rem;
+  width: 100%;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  border-radius: 3px;
+}
+
+.player-link-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #1a3a5a, #2c6090);
+  color: #fff;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  padding: 0.05rem 0.35rem;
+  border-radius: 6px;
+  font-weight: 600;
+  margin-left: 0.2rem;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import {
   loadCharacters,
   saveCharacterToRoom,
@@ -11,14 +11,25 @@ import {
   onRoleChange,
   unlinkItem,
   removeTokenBars,
+  getMyPlayerId,
+  onPartyChange,
+  linkCharacterToItem,
+  onSceneItemsChange,
 } from "../lib/obr.js";
-import { createBlankCharacter } from "../lib/character.js";
+import { createBlankCharacter, migrateCharacter } from "../lib/character.js";
 import { formatRoll } from "../lib/dice.js";
 
 export function Popover() {
   const [characters, setCharacters] = useState({});
   const [recentRolls, setRecentRolls] = useState([]);
   const [role, setRole] = useState("GM");
+  const [myId, setMyId] = useState(null);
+  const [party, setParty] = useState([]);
+  const [sceneItems, setSceneItems] = useState([]);
+
+  // Ref para acessar o estado mais recente dentro de callbacks/effects
+  const charactersRef = useRef({});
+  charactersRef.current = characters;
 
   useEffect(() => {
     loadCharacters().then(setCharacters);
@@ -31,6 +42,18 @@ export function Popover() {
   }, []);
 
   useEffect(() => {
+    getMyPlayerId().then(setMyId);
+  }, []);
+
+  useEffect(() => {
+    return onPartyChange(setParty);
+  }, []);
+
+  useEffect(() => {
+    return onSceneItemsChange(setSceneItems);
+  }, []);
+
+  useEffect(() => {
     const unsub = onRemoteRoll((roll) => {
       setRecentRolls((prev) => [roll, ...prev].slice(0, 5));
     });
@@ -38,6 +61,79 @@ export function Popover() {
   }, []);
 
   const isGM = role === "GM";
+
+  // Lista de players conhecidos (party + eu)
+  const allPlayers = useMemo(() => {
+    const map = new Map();
+    for (const p of party) {
+      if (p.role === "PLAYER") map.set(p.id, p);
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      (a.name || "").localeCompare(b.name || ""),
+    );
+  }, [party]);
+
+  // ============================================================
+  // AUTO-LINK: quando um token "pertence" a um player que tem ficha,
+  // adicionamos o token à lista de tokens dessa ficha automaticamente.
+  // "Pertence" significa: o último que modificou (lastModifiedUserId)
+  // foi o player, ou ele foi o criador (createdUserId).
+  // ============================================================
+  useEffect(() => {
+    if (!isGM) return;
+    if (!sceneItems || sceneItems.length === 0) return;
+
+    const chars = Object.values(charactersRef.current);
+    // mapa playerId -> ficha do jogador
+    const charByPlayer = {};
+    for (const c of chars) {
+      if (c.playerId && !c.npc) charByPlayer[c.playerId] = c;
+    }
+    if (Object.keys(charByPlayer).length === 0) return;
+
+    // Set de ids de items que já estão registrados em alguma ficha
+    const alreadyLinked = new Set();
+    for (const c of chars) {
+      for (const tid of c.tokenIds || []) alreadyLinked.add(tid);
+    }
+
+    const updates = {}; // charId -> novos tokenIds[]
+    for (const item of sceneItems) {
+      // Heurística: pular shapes que são nossas próprias barras
+      if (item.metadata?.["ligeia/barOf"]) continue;
+      // Considera apenas items "controláveis": layer CHARACTER, MOUNT, PROP
+      const layer = item.layer || "";
+      if (!["CHARACTER", "MOUNT", "PROP"].includes(layer)) continue;
+      // Já vinculado a alguma ficha
+      if (alreadyLinked.has(item.id)) continue;
+
+      const ownerId = item.lastModifiedUserId || item.createdUserId;
+      if (!ownerId) continue;
+      const ch = charByPlayer[ownerId];
+      if (!ch) continue;
+
+      // Decisão: "Manter ambos" - adicionamos sem desvincular outros tokens
+      const current = updates[ch.id] || [...(ch.tokenIds || [])];
+      if (!current.includes(item.id)) current.push(item.id);
+      updates[ch.id] = current;
+    }
+
+    // Aplica updates
+    for (const charId of Object.keys(updates)) {
+      const ch = charactersRef.current[charId];
+      if (!ch) continue;
+      const newIds = updates[charId];
+      // marca o item no token (metadata) + salva no character
+      (async () => {
+        for (const tid of newIds) {
+          if (!(ch.tokenIds || []).includes(tid)) {
+            await linkCharacterToItem(tid, ch.id);
+          }
+        }
+        await saveCharacterToRoom({ ...ch, tokenIds: newIds });
+      })();
+    }
+  }, [sceneItems, isGM]);
 
   const handleCreate = async (npc = false) => {
     const name = prompt(npc ? "Nome do NPC:" : "Nome do personagem:");
@@ -51,17 +147,28 @@ export function Popover() {
   const handleDelete = async (id, name) => {
     if (!confirm(`Excluir "${name}"? Isso não pode ser desfeito.`)) return;
     const ch = characters[id];
-    if (ch?.tokenId) {
+    if (ch?.tokenIds?.length) {
       await removeTokenBars(id);
-      await unlinkItem(ch.tokenId);
+      for (const tid of ch.tokenIds) {
+        await unlinkItem(tid);
+      }
     }
     await deleteCharacter(id);
   };
 
-  // Filtra fichas: jogadores não veem NPCs
+  const handleAssignPlayer = async (charId, playerId) => {
+    const ch = characters[charId];
+    if (!ch) return;
+    const next = { ...ch, playerId: playerId || null };
+    await saveCharacterToRoom(next);
+  };
+
   const all = Object.values(characters).sort((a, b) =>
     (a.name || "").localeCompare(b.name || ""),
   );
+  const myChars = !isGM
+    ? all.filter((c) => !c.npc && c.playerId === myId)
+    : [];
   const playerChars = all.filter((c) => !c.npc);
   const npcChars = all.filter((c) => c.npc);
 
@@ -79,7 +186,7 @@ export function Popover() {
         </span>
         {!isGM && (
           <span className="tiny muted">
-            Visão somente leitura. Apenas o Narrador edita fichas.
+            Apenas o Narrador edita fichas. Você pode rolar e ajustar PV/PM.
           </span>
         )}
       </div>
@@ -95,39 +202,51 @@ export function Popover() {
         </button>
       </div>
 
-      <CharSection
-        title="Personagens"
-        items={playerChars}
-        canEdit={isGM}
-        onOpen={openCharacterSheet}
-        onDelete={handleDelete}
-        emptyText={
-          isGM
-            ? 'Nenhum personagem ainda. Clique em "+ Personagem".'
-            : "Nenhum personagem na sala ainda."
-        }
-      />
-
-      {isGM && (
-        <div style={{ marginTop: "0.75rem" }}>
-          <div className="row gap-2" style={{ marginBottom: "0.4rem" }}>
-            <button
-              onClick={() => handleCreate(true)}
-              className="npc-create-btn flex-1"
-            >
-              + NPC (privado do Narrador)
-            </button>
-          </div>
+      {isGM ? (
+        <>
           <CharSection
-            title="NPCs (somente Narrador)"
-            items={npcChars}
-            canEdit={true}
-            isNpc
+            title="Personagens"
+            items={playerChars}
+            isGM={true}
+            allPlayers={allPlayers}
+            party={party}
             onOpen={openCharacterSheet}
             onDelete={handleDelete}
-            emptyText='Nenhum NPC. Clique em "+ NPC" para criar.'
+            onAssignPlayer={handleAssignPlayer}
+            emptyText='Nenhum personagem ainda. Clique em "+ Personagem".'
           />
-        </div>
+
+          <div style={{ marginTop: "0.75rem" }}>
+            <div className="row gap-2" style={{ marginBottom: "0.4rem" }}>
+              <button
+                onClick={() => handleCreate(true)}
+                className="npc-create-btn flex-1"
+              >
+                + NPC (privado do Narrador)
+              </button>
+            </div>
+            <CharSection
+              title="NPCs (somente Narrador)"
+              items={npcChars}
+              isGM={true}
+              isNpc={true}
+              allPlayers={allPlayers}
+              party={party}
+              onOpen={openCharacterSheet}
+              onDelete={handleDelete}
+              emptyText='Nenhum NPC. Clique em "+ NPC".'
+            />
+          </div>
+        </>
+      ) : (
+        <CharSection
+          title="Meus personagens"
+          items={myChars}
+          isGM={false}
+          party={party}
+          onOpen={openCharacterSheet}
+          emptyText="Nenhuma ficha foi atribuída a você ainda. Avise o Narrador."
+        />
       )}
 
       {recentRolls.length > 0 && (
@@ -147,8 +266,8 @@ export function Popover() {
                   fontFamily: "var(--font-mono)",
                 }}
               >
-                <strong style={{ color: "var(--gold)" }}>{r.characterName}</strong> —{" "}
-                {formatRoll(r)}
+                <strong style={{ color: "var(--gold)" }}>{r.characterName}</strong>{" "}
+                — {formatRoll(r)}
               </li>
             ))}
           </ul>
@@ -165,7 +284,18 @@ export function Popover() {
   );
 }
 
-function CharSection({ title, items, canEdit, onOpen, onDelete, emptyText, isNpc }) {
+function CharSection({
+  title,
+  items,
+  isGM,
+  isNpc,
+  allPlayers,
+  party,
+  onOpen,
+  onDelete,
+  onAssignPlayer,
+  emptyText,
+}) {
   return (
     <div className={"panel " + (isNpc ? "panel-npc" : "")}>
       <div className="panel-title">{title}</div>
@@ -175,41 +305,74 @@ function CharSection({ title, items, canEdit, onOpen, onDelete, emptyText, isNpc
         </div>
       ) : (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-          {items.map((c) => (
-            <li
-              key={c.id}
-              className={"char-row " + (isNpc ? "char-row-npc" : "")}
-            >
-              <div style={{ flex: 1, overflow: "hidden" }}>
-                <div className="char-row-name">
-                  {isNpc && <span className="npc-badge">NPC</span>}
-                  {c.name}
-                  {c.tokenId && <span className="token-link-badge" title="Vinculada a um token">⛓</span>}
-                </div>
-                <div className="muted tiny">
-                  {[c.race, c.vocation, c.level ? `Nv. ${c.level}` : null]
-                    .filter(Boolean)
-                    .join(" · ") || "Sem detalhes"}
-                </div>
-              </div>
-              <button
-                onClick={() => onOpen(c.id)}
-                style={{ padding: "0.35rem 0.6rem" }}
+          {items.map((c) => {
+            const assignedPlayer =
+              c.playerId && (party || []).find((p) => p.id === c.playerId);
+            const tokenCount = (c.tokenIds || []).length;
+            return (
+              <li
+                key={c.id}
+                className={"char-row " + (isNpc ? "char-row-npc" : "")}
               >
-                {canEdit ? "Abrir" : "Ver"}
-              </button>
-              {canEdit && (
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <div className="char-row-name">
+                    {isNpc && <span className="npc-badge">NPC</span>}
+                    {c.name}
+                    {tokenCount > 0 && (
+                      <span className="token-link-badge" title={`${tokenCount} token(s) vinculado(s)`}>
+                        ⛓{tokenCount > 1 ? ` ×${tokenCount}` : ""}
+                      </span>
+                    )}
+                    {assignedPlayer && (
+                      <span
+                        className="player-link-badge"
+                        title={`Atribuída a ${assignedPlayer.name}`}
+                      >
+                        👤 {assignedPlayer.name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="muted tiny">
+                    {[c.race, c.vocation, c.level ? `Nv. ${c.level}` : null]
+                      .filter(Boolean)
+                      .join(" · ") || "Sem detalhes"}
+                  </div>
+                  {isGM && !isNpc && (
+                    <div className="assign-row">
+                      <select
+                        value={c.playerId || ""}
+                        onChange={(e) => onAssignPlayer(c.id, e.target.value)}
+                        title="Atribuir esta ficha a um jogador"
+                      >
+                        <option value="">— sem dono —</option>
+                        {(allPlayers || []).map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
                 <button
-                  className="danger"
-                  onClick={() => onDelete(c.id, c.name)}
-                  style={{ padding: "0.35rem 0.5rem" }}
-                  title="Excluir"
+                  onClick={() => onOpen(c.id)}
+                  style={{ padding: "0.35rem 0.6rem" }}
                 >
-                  ✕
+                  {isGM ? "Abrir" : "Ver"}
                 </button>
-              )}
-            </li>
-          ))}
+                {isGM && (
+                  <button
+                    className="danger"
+                    onClick={() => onDelete(c.id, c.name)}
+                    style={{ padding: "0.35rem 0.5rem" }}
+                    title="Excluir"
+                  >
+                    ✕
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

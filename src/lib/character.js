@@ -21,7 +21,8 @@ export function createBlankCharacter(name = "Novo Personagem") {
 
     // Tipo
     npc: false,        // se true, fica oculto dos jogadores (só GM vê)
-    tokenId: null,     // id do item da cena (token) vinculado
+    tokenIds: [],      // ids dos items da cena (tokens) vinculados (múltiplos)
+    playerId: null,    // id do OBR.player dono dessa ficha (PC)
 
     // Identidade
     name,
@@ -181,10 +182,20 @@ export function migrateCharacter(char) {
 
   // Novos campos com defaults
   if (typeof c.npc !== "boolean") c.npc = false;
-  if (typeof c.tokenId === "undefined") c.tokenId = null;
+  if (typeof c.playerId === "undefined") c.playerId = null;
   if (typeof c.heroicBonus !== "number") c.heroicBonus = 0;
   if (c.hp && typeof c.hp.bonus !== "number") c.hp = { ...c.hp, bonus: 0 };
   if (c.mp && typeof c.mp.bonus !== "number") c.mp = { ...c.mp, bonus: 0 };
+
+  // tokenId (string única, antigo) → tokenIds (array)
+  if (!Array.isArray(c.tokenIds)) {
+    if (typeof c.tokenId === "string" && c.tokenId) {
+      c.tokenIds = [c.tokenId];
+    } else {
+      c.tokenIds = [];
+    }
+  }
+  delete c.tokenId; // remove campo antigo
 
   // Helper para adicionar campos de efeitos a um item
   const withEffects = (item) => ({

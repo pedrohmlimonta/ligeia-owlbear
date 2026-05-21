@@ -240,6 +240,82 @@ export function onRoleChange(callback) {
   return () => unsub();
 }
 
+
+/* ============================================================================
+   Identidade do jogador local + party
+   ============================================================================ */
+
+/** ID estável deste jogador (persiste entre reconexões). */
+export async function getMyPlayerId() {
+  if (!isInsideOBR()) return "standalone";
+  await whenOBRReady();
+  try {
+    return await OBR.player.getId();
+  } catch {
+    return null;
+  }
+}
+
+/** Informações completas do player local. */
+export async function getMyPlayerInfo() {
+  if (!isInsideOBR()) {
+    return { id: "standalone", name: "Você", role: "GM", selection: [] };
+  }
+  await whenOBRReady();
+  try {
+    const [id, name, role, selection] = await Promise.all([
+      OBR.player.getId(),
+      OBR.player.getName().catch(() => "Você"),
+      OBR.player.getRole(),
+      OBR.player.getSelection().catch(() => []),
+    ]);
+    return { id, name, role, selection: selection || [] };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Assina mudanças na party (outros jogadores na sala).
+ * O callback recebe um array de { id, name, role, selection: [tokenIds] }
+ */
+export function onPartyChange(callback) {
+  if (!isInsideOBR()) {
+    callback([]);
+    return () => {};
+  }
+  let unsub = () => {};
+  whenOBRReady().then(() => {
+    unsub = OBR.party.onChange((players) => {
+      callback(
+        (players || []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          role: p.role,
+          selection: p.selection || [],
+          color: p.color,
+        })),
+      );
+    });
+    // dispara o estado inicial
+    OBR.party
+      .getPlayers()
+      .then((players) =>
+        callback(
+          (players || []).map((p) => ({
+            id: p.id,
+            name: p.name,
+            role: p.role,
+            selection: p.selection || [],
+            color: p.color,
+          })),
+        ),
+      )
+      .catch(() => {});
+  });
+  return () => unsub();
+}
+
 /* ============================================================================
    Seleção de tokens / vínculo com items da cena
    ============================================================================ */
@@ -473,3 +549,23 @@ export async function removeTokenBars(characterId) {
   }
 }
 
+/* ============================================================================
+   Observação da cena para auto-vinculação de tokens a players
+   ============================================================================ */
+
+/**
+ * Assina mudanças nos items da cena. Útil para a extensão reagir quando
+ * o GM adiciona um token controlado por um player ao mapa.
+ *
+ * O callback recebe o array completo de items.
+ */
+export function onSceneItemsChange(callback) {
+  if (!isInsideOBR()) return () => {};
+  let unsub = () => {};
+  whenOBRReady().then(() => {
+    // Estado inicial
+    OBR.scene.items.getItems().then((items) => callback(items || [])).catch(() => {});
+    unsub = OBR.scene.items.onChange((items) => callback(items || []));
+  });
+  return () => unsub();
+}

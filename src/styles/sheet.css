@@ -960,3 +960,46 @@
 .effect-row {
   grid-template-columns: 28px minmax(110px, 1.2fr) minmax(120px, 1.5fr) 55px 1.5fr 24px;
 }
+
+/* Badge de jogador-dono no header da ficha */
+.owner-header-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #1a3a5a, #2c6090);
+  color: #fff;
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9px;
+  margin-top: 0.3rem;
+  font-weight: 600;
+}
+
+/* Lista de tokens vinculados na barra do GM */
+.token-mini-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0.3rem 0 0 0;
+  padding: 0;
+}
+
+.token-mini-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+}
+
+.token-mini-list .token-name {
+  flex: 1;
+  color: var(--gold-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
