@@ -1037,3 +1037,51 @@
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* Pontos de Vida Temporários (badge inline) */
+.temp-pip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  background: rgba(95, 158, 160, 0.12);
+  border: 1px solid #5f9ea0aa;
+  border-radius: 9px;
+  font-size: 0.78rem;
+}
+
+.temp-plus {
+  color: #5f9ea0;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.temp-input {
+  width: 32px !important;
+  font-size: 0.78rem !important;
+  padding: 0.05rem !important;
+  text-align: center !important;
+  background: transparent !important;
+  border: none !important;
+  color: #5f9ea0 !important;
+  font-weight: 600;
+}
+
+.temp-label {
+  color: #5f9ea0;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Toggle "Dar acesso de Narrador" */
+.gm-grant-toggle {
+  padding: 0.4rem 0.5rem;
+  background: linear-gradient(135deg, rgba(212, 166, 73, 0.08), rgba(212, 166, 73, 0.02));
+  border: 1px dashed var(--gold-soft);
+  border-radius: 3px;
+  align-items: flex-start;
+  display: flex;
+  gap: 0.5rem;
+}

@@ -138,11 +138,15 @@ function renderSecondaries(c) {
 
 function renderResources(c) {
   const r = deriveResources(c, collectActiveEffects(c));
+  const tempBadge =
+    c.hp?.temp && c.hp.temp > 0
+      ? ` <small style="opacity:.85">(+${c.hp.temp} temp)</small>`
+      : "";
   return `
     <div class="resources">
       <div class="resource hp">
         <div class="r-label">Pontos de Vida</div>
-        <div class="r-value">${c.hp?.current || 0} / ${r.hpMax}</div>
+        <div class="r-value">${c.hp?.current || 0} / ${r.hpMax}${tempBadge}</div>
       </div>
       <div class="resource mp">
         <div class="r-label">Pontos de Magia</div>

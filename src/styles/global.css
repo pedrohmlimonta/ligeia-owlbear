@@ -431,3 +431,23 @@ label {
   border-color: var(--gold-soft);
   color: var(--gold);
 }
+
+/* Botão "🗝" no popover (toggle de acesso GM) */
+.key-toggle {
+  padding: 0.35rem 0.5rem !important;
+  font-size: 0.85rem;
+  background: var(--bg-raised) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-muted) !important;
+}
+
+.key-toggle.is-on {
+  background: linear-gradient(135deg, #5a3a14, #8a5a1f) !important;
+  color: #fff !important;
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 6px rgba(212, 166, 73, 0.5);
+}
+
+.key-toggle:hover {
+  border-color: var(--gold-soft) !important;
+}

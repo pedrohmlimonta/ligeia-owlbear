@@ -176,6 +176,13 @@ export function Popover() {
     await saveCharacterToRoom(next);
   };
 
+  const handleToggleGmAccess = async (charId, value) => {
+    const ch = characters[charId];
+    if (!ch) return;
+    const next = { ...ch, grantPlayerGmAccess: !!value };
+    await saveCharacterToRoom(next);
+  };
+
   const all = Object.values(characters).sort((a, b) =>
     (a.name || "").localeCompare(b.name || ""),
   );
@@ -229,6 +236,7 @@ export function Popover() {
             onOpen={openCharacterSheet}
             onDelete={handleDelete}
             onAssignPlayer={handleAssignPlayer}
+            onToggleGmAccess={handleToggleGmAccess}
             emptyText='Nenhum personagem ainda. Clique em "+ Personagem".'
           />
 
@@ -310,6 +318,7 @@ function CharSection({
   onOpen,
   onDelete,
   onAssignPlayer,
+  onToggleGmAccess,
   emptyText,
 }) {
   return (
@@ -376,6 +385,21 @@ function CharSection({
                 >
                   {isGM ? "Abrir" : "Ver"}
                 </button>
+                {isGM && !isNpc && c.playerId && (
+                  <button
+                    className={
+                      "key-toggle " + (c.grantPlayerGmAccess ? "is-on" : "")
+                    }
+                    onClick={() => onToggleGmAccess(c.id, !c.grantPlayerGmAccess)}
+                    title={
+                      c.grantPlayerGmAccess
+                        ? "Jogador tem acesso de Narrador — clique para revogar"
+                        : "Dar acesso de Narrador ao jogador desta ficha"
+                    }
+                  >
+                    🗝
+                  </button>
+                )}
                 {isGM && (
                   <button
                     className="danger"

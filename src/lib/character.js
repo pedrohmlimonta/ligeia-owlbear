@@ -66,8 +66,13 @@ export function createBlankCharacter(name = "Novo Personagem") {
 
     // Recursos
     // `bonus` é um ajuste manual do Narrador (negativo ou positivo)
-    hp: { current: 0, max: 0, vocationBonus: 0, bonus: 0 },
+    // `temp` (apenas em hp) são pontos de vida temporários (escudo extra)
+    hp: { current: 0, max: 0, vocationBonus: 0, bonus: 0, temp: 0 },
     mp: { current: 0, max: 0, vocationBonus: 0, bonus: 0 },
+
+    // Permissões
+    // Se true, o jogador dono ganha acesso total de Narrador a esta ficha.
+    grantPlayerGmAccess: false,
 
     // Habilidades (cada uma com nível B/A/E + modo/efeitos)
     skills: [], // [{ name, level, attribute, mode, active, effects: [...] }]
@@ -184,7 +189,9 @@ export function migrateCharacter(char) {
   if (typeof c.npc !== "boolean") c.npc = false;
   if (typeof c.playerId === "undefined") c.playerId = null;
   if (typeof c.heroicBonus !== "number") c.heroicBonus = 0;
+  if (typeof c.grantPlayerGmAccess !== "boolean") c.grantPlayerGmAccess = false;
   if (c.hp && typeof c.hp.bonus !== "number") c.hp = { ...c.hp, bonus: 0 };
+  if (c.hp && typeof c.hp.temp !== "number") c.hp = { ...c.hp, temp: 0 };
   if (c.mp && typeof c.mp.bonus !== "number") c.mp = { ...c.mp, bonus: 0 };
 
   // tokenId (string única, antigo) → tokenIds (array)
@@ -279,6 +286,41 @@ export function migrateCharacter(char) {
         .map(normalizeEffects);
     }
   }
+
+  return c;
+}
+
+/**
+ * Aplica clamping aos recursos: PV/PM/Pontos Heroicos atuais não podem
+ * ultrapassar seus respectivos máximos, nem ser negativos.
+ *
+ * Pontos de Vida Temporários (hp.temp) podem ser livremente positivos.
+ *
+ * `resources` deve vir de deriveResources(c, activeEffects).
+ */
+export function clampResources(char, resources) {
+  if (!char) return char;
+  const { hpMax, mpMax, heroicMax } = resources || {};
+  const c = { ...char };
+
+  if (c.hp) {
+    const cur = Number(c.hp.current) || 0;
+    const temp = Math.max(0, Number(c.hp.temp) || 0);
+    c.hp = {
+      ...c.hp,
+      current: Math.max(0, Math.min(cur, hpMax || 0)),
+      temp,
+    };
+  }
+  if (c.mp) {
+    const cur = Number(c.mp.current) || 0;
+    c.mp = {
+      ...c.mp,
+      current: Math.max(0, Math.min(cur, mpMax || 0)),
+    };
+  }
+  const hp = Number(c.heroicPoints) || 0;
+  c.heroicPoints = Math.max(0, Math.min(hp, heroicMax || 0));
 
   return c;
 }

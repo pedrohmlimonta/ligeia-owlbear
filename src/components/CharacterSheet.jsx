@@ -18,6 +18,7 @@ import {
   deriveSecondary,
   deriveResources,
   migrateCharacter,
+  clampResources,
 } from "../lib/character.js";
 import { rollLigeia } from "../lib/dice.js";
 import {
@@ -74,7 +75,14 @@ export function CharacterSheet({ characterId }) {
   }, []);
 
   const isGM = role === "GM";
-  const canEdit = isGM;
+  // O dono da ficha ganha permissões de GM se o Narrador ativar o toggle
+  // grantPlayerGmAccess.
+  const isOwnerWithAccess =
+    !isGM &&
+    character?.playerId &&
+    character.playerId === myId &&
+    !!character?.grantPlayerGmAccess;
+  const canEdit = isGM || isOwnerWithAccess;
 
   // Carrega o personagem
   useEffect(() => {
@@ -109,19 +117,36 @@ export function CharacterSheet({ characterId }) {
   useEffect(() => {
     if (!character || loading) return;
     const t = setTimeout(() => {
-      saveCharacterToRoom(character);
+      const eff = collectActiveEffects(character);
+      const res = deriveResources(character, eff);
+      // Aplica clamp antes de salvar: PV/PM/PH atuais não passam do máximo,
+      // PV temp não fica negativo
+      const clamped = clampResources(character, res);
+      // Se o clamp alterou algo, atualiza o estado local também
+      if (
+        clamped.hp.current !== character.hp.current ||
+        clamped.hp.temp !== character.hp.temp ||
+        clamped.mp.current !== character.mp.current ||
+        clamped.heroicPoints !== character.heroicPoints
+      ) {
+        setCharacter(clamped);
+        return; // novo render reagenda esse effect, evita salvar valor não-clampado
+      }
+      saveCharacterToRoom(clamped);
       // Atualiza barras em TODOS os tokens vinculados, se houver
-      const ids = character.tokenIds || [];
+      const ids = clamped.tokenIds || [];
       if (ids.length > 0) {
-        const eff = collectActiveEffects(character);
-        const res = deriveResources(character, eff);
         const stats = {
-          hp: { current: character.hp.current, max: res.hpMax },
-          mp: { current: character.mp.current, max: res.mpMax },
-          hero: { current: character.heroicPoints, max: res.heroicMax },
+          hp: {
+            current: clamped.hp.current,
+            max: res.hpMax,
+            temp: clamped.hp.temp || 0,
+          },
+          mp: { current: clamped.mp.current, max: res.mpMax },
+          hero: { current: clamped.heroicPoints, max: res.heroicMax },
         };
         for (const tid of ids) {
-          updateTokenBars(tid, character.id, stats, !!character.npc);
+          updateTokenBars(tid, clamped.id, stats, !!clamped.npc);
         }
       }
     }, 400);
@@ -408,29 +433,48 @@ export function CharacterSheet({ characterId }) {
       <div className="identity-row">
         <div>
           <label>Raça</label>
-          <select value={character.race} onChange={(e) => update({ race: e.target.value })}>
-            <option value="">—</option>
+          <input
+            type="text"
+            value={character.race}
+            onChange={(e) => update({ race: e.target.value })}
+            placeholder="Ex: Humano"
+            list="ligeia-races"
+          />
+          <datalist id="ligeia-races">
             {RACES.map((r) => (
-              <option key={r}>{r}</option>
+              <option key={r} value={r} />
             ))}
-          </select>
+          </datalist>
         </div>
         <div>
           <label>Herança</label>
-          <select value={character.heritage} onChange={(e) => update({ heritage: e.target.value })}>
+          <input
+            type="text"
+            value={character.heritage}
+            onChange={(e) => update({ heritage: e.target.value })}
+            placeholder="—"
+            list="ligeia-heritages"
+          />
+          <datalist id="ligeia-heritages">
             {HERITAGES.map((h) => (
-              <option key={h}>{h}</option>
+              <option key={h} value={h} />
             ))}
-          </select>
+          </datalist>
         </div>
         <div>
           <label>Vocação</label>
-          <select value={character.vocation} onChange={(e) => update({ vocation: e.target.value })}>
-            <option value="">—</option>
+          <input
+            type="text"
+            value={character.vocation}
+            onChange={(e) => update({ vocation: e.target.value })}
+            placeholder="Ex: Guerreiro"
+            list="ligeia-vocations"
+          />
+          <datalist id="ligeia-vocations">
             {VOCATIONS.map((v) => (
-              <option key={v}>{v}</option>
+              <option key={v} value={v} />
             ))}
-          </select>
+          </datalist>
         </div>
         <div>
           <label>Modelo</label>
@@ -577,6 +621,11 @@ export function CharacterSheet({ characterId }) {
                       update({ hp: { ...character.hp, bonus: v } })
                     }
                     showBonus={isGM}
+                    temp={character.hp.temp || 0}
+                    onTempChange={(v) =>
+                      update({ hp: { ...character.hp, temp: v } })
+                    }
+                    showTemp={true}
                   />
                 ),
                 onRoll: null,
@@ -805,14 +854,35 @@ function AttributeBlock({ label, attr, onChange, onRoll, derived }) {
   );
 }
 
-function ResourceInput({ current, max, onChange, bonus, onBonusChange, showBonus }) {
+function ResourceInput({
+  current,
+  max,
+  onChange,
+  bonus,
+  onBonusChange,
+  showBonus,
+  temp,
+  onTempChange,
+  showTemp,
+}) {
+  // Clampa current ao max (e não-negativo) na hora de aceitar input.
+  const handleCurrent = (raw) => {
+    const v = Number(raw) || 0;
+    onChange(Math.max(0, Math.min(v, max || 0)));
+  };
+  const handleTemp = (raw) => {
+    const v = Number(raw) || 0;
+    onTempChange(Math.max(0, v));
+  };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
         <input
           type="number"
           value={current}
-          onChange={(e) => onChange(Number(e.target.value))}
+          min={0}
+          max={max}
+          onChange={(e) => handleCurrent(e.target.value)}
           className="player-editable"
           style={{
             width: 50,
@@ -826,6 +896,23 @@ function ResourceInput({ current, max, onChange, bonus, onBonusChange, showBonus
         <span style={{ color: "var(--gold)", fontFamily: "var(--font-display)" }}>
           {max}
         </span>
+        {showTemp && (
+          <span
+            className="temp-pip"
+            title="Pontos de vida temporários (absorvem dano antes do PV)"
+          >
+            <span className="temp-plus">+</span>
+            <input
+              type="number"
+              value={temp || 0}
+              min={0}
+              onChange={(e) => handleTemp(e.target.value)}
+              className="player-editable temp-input"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span className="temp-label">temp</span>
+          </span>
+        )}
       </div>
       {showBonus && (
         <div className="resource-bonus" title="Bônus/penalidade ao máximo">
@@ -1682,6 +1769,27 @@ function GmControls({ character, tokenName, onUpdate }) {
               Quando esse jogador adicionar um token à cena, ele é vinculado
               a esta ficha automaticamente.
             </div>
+            {character.playerId && (
+              <label
+                className="gm-toggle gm-grant-toggle"
+                style={{ marginTop: "0.5rem" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={!!character.grantPlayerGmAccess}
+                  onChange={(e) =>
+                    onUpdate({ grantPlayerGmAccess: e.target.checked })
+                  }
+                />
+                <span>
+                  🗝 Dar acesso de Narrador ao jogador
+                  <div className="tiny muted" style={{ fontWeight: "normal", marginTop: "0.15rem" }}>
+                    Permite que o jogador dono edite esta ficha como GM
+                    (atributos, equipamentos, etc).
+                  </div>
+                </span>
+              </label>
+            )}
           </div>
         )}
       </div>

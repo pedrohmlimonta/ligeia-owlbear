@@ -522,6 +522,37 @@ export async function updateTokenBars(tokenId, characterId, stats, npc = false) 
           .build();
         newItems.push(fg);
       }
+
+      // Overlay de PV TEMPORÁRIOS (apenas no PV)
+      // Renderizado como uma faixa ciano fina no topo da barra,
+      // proporcional ao temp em relação ao max (cap em 1 max).
+      if (type === "hp" && st.temp && st.temp > 0 && st.max > 0) {
+        const tempRatio = Math.min(1, st.temp / st.max);
+        const tempW = Math.max(0.5, width * tempRatio);
+        const tempH = Math.max(2, BAR_HEIGHT * 0.45);
+        const tempFg = buildShape()
+          .shapeType("RECTANGLE")
+          .position({ x: left, y })
+          .width(tempW)
+          .height(tempH)
+          .fillColor("#5fd0c8")
+          .fillOpacity(1)
+          .strokeColor("#000000")
+          .strokeWidth(0)
+          .strokeOpacity(0)
+          .attachedTo(tokenId)
+          .layer("ATTACHMENT")
+          .locked(true)
+          .disableHit(true)
+          .visible(!npc)
+          .metadata({
+            "ligeia/barOf": characterId,
+            "ligeia/barType": type,
+            "ligeia/barRole": "temp",
+          })
+          .build();
+        newItems.push(tempFg);
+      }
     });
 
     if (newItems.length > 0) {
