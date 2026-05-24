@@ -814,8 +814,15 @@
 /* Botões que NÃO são de rolagem ou toggle ficam desabilitados em readonly.
    Mantemos clicáveis: rolagens (attribute-circle, attack-bonus-circle, skill-checkbox),
    e toggles de combate (mode-pill ativo, effect-enable-btn, effects-toggle). */
-.sheet-readonly button:not(.attribute-circle):not(.attack-bonus-circle):not(.dismiss):not(.skill-checkbox):not(.word-chip-mark):not(.mode-pill):not(.effect-enable-btn):not(.effects-toggle):not(.export-btn) {
+.sheet-readonly button:not(.attribute-circle):not(.attack-bonus-circle):not(.dismiss):not(.word-chip-mark):not(.mode-pill):not(.effect-enable-btn):not(.effects-toggle):not(.export-btn):not(.skill-checkbox) {
   display: none !important;
+}
+
+/* B/A/E permanecem VISÍVEIS para mostrar o nível, mas não são clicáveis */
+.sheet-readonly .skill-checkbox {
+  pointer-events: none;
+  opacity: 0.85;
+  cursor: default;
 }
 
 /* Chips de palavras: não permite alternar em jogador */
