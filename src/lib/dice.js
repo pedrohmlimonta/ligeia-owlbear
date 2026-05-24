@@ -148,3 +148,61 @@ export function formatRoll(r) {
 
   return `${r.label}: ${parts.join(" + ")} = ${r.total}${outcome}`;
 }
+
+/**
+ * Versão resumida — só rótulo, total e crítico. Sem dados, atributo, bônus.
+ * Usada para mostrar rolagens do Narrador aos jogadores.
+ */
+export function formatRollSummary(r) {
+  let outcome = "";
+  if (r.isCritSuccess) outcome = " ✦ SUCESSO CRÍTICO ✦";
+  else if (r.isCritFail) outcome = " ✗ FALHA CRÍTICA ✗";
+  const label = r.label ? `${r.label}: ` : "";
+  return `${label}${r.total}${outcome}`;
+}
+
+/**
+ * Escolhe o formato apropriado para mostrar uma rolagem a um observador.
+ *
+ * Regras:
+ *  - Quem rolou sempre vê os detalhes completos (própria rolagem).
+ *  - Outros GMs também veem os detalhes completos.
+ *  - Jogadores que NÃO foram quem rolaram veem versão resumida quando
+ *    a rolagem veio do Narrador.
+ *
+ * `viewer`: { role, id }  — quem está olhando
+ * `roll`: objeto de rolagem; pode conter fromRole, fromPlayerId
+ */
+export function formatRollForViewer(roll, viewer) {
+  if (!roll) return "";
+  const viewerRole = viewer?.role || "PLAYER";
+  const viewerId = viewer?.id;
+  const fromRole = roll.fromRole || "GM";
+  const fromPlayerId = roll.fromPlayerId;
+
+  // Foi o próprio observador quem rolou? mostra completo
+  if (fromPlayerId && viewerId && fromPlayerId === viewerId) {
+    return formatRoll(roll);
+  }
+  // Observador é GM? mostra completo
+  if (viewerRole === "GM") return formatRoll(roll);
+  // Rolagem veio do GM e observador é player? resumida
+  if (fromRole === "GM") return formatRollSummary(roll);
+  // Caso padrão: completo
+  return formatRoll(roll);
+}
+
+/**
+ * Indica se a rolagem deve ter detalhes (dados, atributo, bônus) ocultos
+ * para o observador. Útil para a renderização do toast também.
+ */
+export function shouldHideRollDetails(roll, viewer) {
+  if (!roll) return false;
+  const viewerRole = viewer?.role || "PLAYER";
+  const viewerId = viewer?.id;
+  const fromRole = roll.fromRole || "GM";
+  const fromPlayerId = roll.fromPlayerId;
+  if (fromPlayerId && viewerId && fromPlayerId === viewerId) return false;
+  if (viewerRole === "GM") return false;
+  return fromRole === "GM";
+}

@@ -802,8 +802,9 @@
 }
 
 /* Exceções: campos que o jogador PODE editar mesmo sem ser GM.
-   Inclui PV atual, PM atual e Pontos Heroicos atuais. */
-.sheet-readonly input.player-editable {
+   Inclui PV atual, PM atual, Pontos Heroicos atuais, Personalidade e Notas. */
+.sheet-readonly input.player-editable,
+.sheet-readonly textarea.player-editable {
   pointer-events: auto !important;
   background: var(--bg-deep) !important;
   border-color: var(--gold-soft) !important;

@@ -766,6 +766,7 @@ export function CharacterSheet({ characterId }) {
               onChange={(e) => update({ personality: e.target.value })}
               placeholder="Personalidade, traços, ideais, vínculos, defeitos..."
               rows={3}
+              className="player-editable"
             />
             <textarea
               value={character.notes}
@@ -773,6 +774,7 @@ export function CharacterSheet({ characterId }) {
               placeholder="Notas livres, história, anotações de campanha..."
               rows={4}
               style={{ marginTop: "0.5rem" }}
+              className="player-editable"
             />
           </div>
         </div>

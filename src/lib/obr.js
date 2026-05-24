@@ -42,14 +42,26 @@ export async function whenOBRReady() {
 /**
  * Envia uma rolagem para o canal compartilhado, para que todos os jogadores
  * na sala vejam o resultado.
+ *
+ * Inclui o papel de quem rolou (`fromRole`) e o id (`fromPlayerId`), para
+ * que os receptores possam decidir mostrar a versão completa ou resumida
+ * — rolagens do Narrador aparecem com detalhes ocultos para os jogadores.
  */
 export async function broadcastRoll(rollResult, characterName = "—") {
   if (!isInsideOBR()) return;
   await whenOBRReady();
   try {
+    let fromRole = "GM";
+    let fromPlayerId = null;
+    try {
+      fromRole = await OBR.player.getRole();
+    } catch {}
+    try {
+      fromPlayerId = OBR.player.id;
+    } catch {}
     await OBR.broadcast.sendMessage(
       CHANNEL_ROLLS,
-      { ...rollResult, characterName },
+      { ...rollResult, characterName, fromRole, fromPlayerId },
       { destination: "REMOTE" }, // os outros recebem; o autor processa local
     );
   } catch (e) {

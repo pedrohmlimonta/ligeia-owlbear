@@ -17,7 +17,7 @@ import {
   onSceneItemsChange,
 } from "../lib/obr.js";
 import { createBlankCharacter, migrateCharacter } from "../lib/character.js";
-import { formatRoll } from "../lib/dice.js";
+import { formatRoll, formatRollForViewer } from "../lib/dice.js";
 import { parseImportedJson, readFileAsText } from "../lib/importExport.js";
 
 export function Popover() {
@@ -291,7 +291,7 @@ export function Popover() {
                 }}
               >
                 <strong style={{ color: "var(--gold)" }}>{r.characterName}</strong>{" "}
-                — {formatRoll(r)}
+                — {formatRollForViewer(r, { role, id: myId })}
               </li>
             ))}
           </ul>

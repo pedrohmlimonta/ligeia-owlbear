@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
-import { rollLigeia, formatRoll } from "../lib/dice.js";
-import { broadcastRoll, onRemoteRoll } from "../lib/obr.js";
+import { rollLigeia, formatRoll, formatRollForViewer } from "../lib/dice.js";
+import {
+  broadcastRoll,
+  onRemoteRoll,
+  onRoleChange,
+  getMyPlayerId,
+} from "../lib/obr.js";
 import { DiceTray } from "./Die3D.jsx";
 
 const ATTRIBUTE_PRESETS = [
@@ -34,6 +39,13 @@ export function DiceRoller() {
   const [useDifficulty, setUseDifficulty] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  const [role, setRole] = useState("GM");
+  const [myId, setMyId] = useState(null);
+
+  useEffect(() => onRoleChange(setRole), []);
+  useEffect(() => {
+    getMyPlayerId().then(setMyId);
+  }, []);
 
   useEffect(() => {
     const unsub = onRemoteRoll((roll) => {
@@ -286,7 +298,7 @@ export function DiceRoller() {
                 }}
               >
                 {r.remote && <strong style={{ color: "var(--gold)" }}>{r.characterName} </strong>}
-                {formatRoll(r)}
+                {formatRollForViewer(r, { role, id: myId })}
               </li>
             ))}
           </ul>
