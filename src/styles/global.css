@@ -451,3 +451,150 @@ label {
 .key-toggle:hover {
   border-color: var(--gold-soft) !important;
 }
+
+/* ===========================================================================
+   Overlay de rolagem ao vivo (animação 3D + resultado)
+   =========================================================================== */
+.live-roll-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  animation: liveRollFadeIn 0.18s ease-out;
+}
+
+.live-roll-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease-in;
+}
+
+@keyframes liveRollFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.live-roll-card {
+  background: linear-gradient(180deg, #1f1812, #0e0a07);
+  border: 1px solid var(--gold-soft);
+  border-radius: 6px;
+  padding: 0.9rem 1rem 0.7rem;
+  width: min(360px, 100%);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.6),
+    0 12px 32px rgba(0,0,0,0.7),
+    0 0 30px rgba(212, 166, 73, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: center;
+  animation: liveRollPop 0.35s cubic-bezier(.22,1,.36,1);
+}
+
+@keyframes liveRollPop {
+  0%   { transform: scale(0.85); opacity: 0; }
+  60%  { transform: scale(1.03); }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+.live-roll-header { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.live-roll-author {
+  font-family: var(--font-display);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-size: 0.8rem;
+}
+
+.live-roll-label {
+  font-family: var(--font-display);
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+.live-roll-formula {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.live-roll-total .live-roll-num {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(212, 166, 73, 0.45);
+  letter-spacing: 0.02em;
+}
+
+.live-roll-total.crit-success .live-roll-num {
+  color: var(--crit-success);
+  text-shadow: 0 0 14px rgba(46, 184, 134, 0.5);
+}
+.live-roll-total.crit-fail .live-roll-num {
+  color: var(--crit-fail);
+  text-shadow: 0 0 14px rgba(200, 60, 60, 0.5);
+}
+
+.live-roll-tag {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 0.2rem;
+}
+
+.live-roll-tag.crit-success { color: var(--crit-success); }
+.live-roll-tag.crit-fail { color: var(--crit-fail); }
+.live-roll-tag.ok { color: var(--success); }
+.live-roll-tag.ko { color: var(--rubi-bright); }
+
+.live-roll-close {
+  align-self: center;
+  margin-top: 0.3rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.live-roll-close:hover {
+  border-color: var(--gold-soft);
+  color: var(--gold);
+}
+
+/* Toggle "Rolagem oculta" */
+.hidden-roll-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px dashed #8b2a2a55;
+  border-radius: 3px;
+  background: rgba(139, 42, 42, 0.06);
+  cursor: pointer;
+}
+
+.hidden-roll-btn {
+  background: linear-gradient(135deg, #2d1a1a, #5a1010) !important;
+  border-color: var(--rubi) !important;
+}
+
+.hidden-roll-btn:hover {
+  border-color: var(--rubi-bright) !important;
+}

@@ -3,6 +3,7 @@ import {
   loadCharacters,
   saveCharacterToRoom,
   broadcastRoll,
+  onRemoteRoll,
   onRoleChange,
   getSelectedItemIds,
   linkCharacterToItem,
@@ -38,6 +39,7 @@ import {
   readFileAsText,
 } from "../lib/importExport.js";
 import { openPrintableSheet } from "../lib/pdfExport.js";
+import { LiveRollOverlay } from "./LiveRollOverlay.jsx";
 import {
   RACES,
   HERITAGES,
@@ -57,6 +59,7 @@ export function CharacterSheet({ characterId }) {
   const [character, setCharacter] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rollToast, setRollToast] = useState(null);
+  const [liveRoll, setLiveRoll] = useState(null);
   const [role, setRole] = useState("GM");
   const [tokenName, setTokenName] = useState(null);
   const [myId, setMyId] = useState(null);
@@ -64,6 +67,11 @@ export function CharacterSheet({ characterId }) {
 
   useEffect(() => {
     return onRoleChange(setRole);
+  }, []);
+
+  useEffect(() => {
+    const unsub = onRemoteRoll((roll) => setLiveRoll(roll));
+    return unsub;
   }, []);
 
   useEffect(() => {
@@ -259,6 +267,12 @@ export function CharacterSheet({ characterId }) {
   return (
     <EditPermContext.Provider value={canEdit}>
     <div className={"sheet " + (canEdit ? "" : "sheet-readonly")}>
+      <LiveRollOverlay
+        roll={liveRoll}
+        viewer={{ role, id: myId }}
+        onDismiss={() => setLiveRoll(null)}
+      />
+
       {/* Toast de rolagem */}
       {rollToast && (
         <div

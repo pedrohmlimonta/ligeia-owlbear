@@ -7,6 +7,7 @@ import {
   getMyPlayerId,
 } from "../lib/obr.js";
 import { DiceTray } from "./Die3D.jsx";
+import { LiveRollOverlay } from "./LiveRollOverlay.jsx";
 
 const ATTRIBUTE_PRESETS = [
   { key: "forca", label: "Força" },
@@ -47,14 +48,19 @@ export function DiceRoller() {
     getMyPlayerId().then(setMyId);
   }, []);
 
+  const [liveRoll, setLiveRoll] = useState(null);
+
   useEffect(() => {
     const unsub = onRemoteRoll((roll) => {
       setHistory((prev) =>
         [{ ...roll, remote: true }, ...prev].slice(0, 20),
       );
+      setLiveRoll(roll);
     });
     return unsub;
   }, []);
+
+  const [hidden, setHidden] = useState(false);
 
   const handleRoll = (overrides = {}) => {
     const r = rollLigeia({
@@ -66,8 +72,10 @@ export function DiceRoller() {
       ...overrides,
     });
     setResult(r);
-    setHistory((prev) => [r, ...prev].slice(0, 20));
-    broadcastRoll(r, "Mesa");
+    setHistory((prev) =>
+      [{ ...r, hidden: hidden && role === "GM" }, ...prev].slice(0, 20),
+    );
+    broadcastRoll(r, "Mesa", { hidden: hidden && role === "GM" });
   };
 
   const handleQuickRoll = (preset) => {
@@ -91,6 +99,12 @@ export function DiceRoller() {
 
   return (
     <div style={{ padding: "1rem", minHeight: "100vh" }}>
+      <LiveRollOverlay
+        roll={liveRoll}
+        viewer={{ role, id: myId }}
+        onDismiss={() => setLiveRoll(null)}
+      />
+
       <header className="brand-header" style={{ paddingTop: 0 }}>
         <div className="brand-mark" style={{ fontSize: "1.2rem" }}>
           ROLADOR
@@ -232,14 +246,31 @@ export function DiceRoller() {
               ))}
             </select>
           )}
+
+          {role === "GM" && (
+            <label className="hidden-roll-toggle">
+              <input
+                type="checkbox"
+                checked={hidden}
+                onChange={(e) => setHidden(e.target.checked)}
+                style={{ width: "auto" }}
+              />
+              <span>
+                🕶 Rolagem oculta
+                <div className="tiny muted">
+                  Resultado fica só para você — nada é compartilhado com a mesa.
+                </div>
+              </span>
+            </label>
+          )}
         </div>
 
         <button
-          className="primary"
+          className={"primary " + (hidden && role === "GM" ? "hidden-roll-btn" : "")}
           onClick={() => handleRoll()}
           style={{ width: "100%", marginTop: "1rem", fontSize: "0.95rem", padding: "0.75rem" }}
         >
-          🎲 Rolar
+          {hidden && role === "GM" ? "🕶 Rolar oculto" : "🎲 Rolar"}
         </button>
       </div>
 
@@ -298,6 +329,7 @@ export function DiceRoller() {
                 }}
               >
                 {r.remote && <strong style={{ color: "var(--gold)" }}>{r.characterName} </strong>}
+                {r.hidden && <span title="Rolagem oculta">🕶 </span>}
                 {formatRollForViewer(r, { role, id: myId })}
               </li>
             ))}

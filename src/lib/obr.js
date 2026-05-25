@@ -47,7 +47,7 @@ export async function whenOBRReady() {
  * que os receptores possam decidir mostrar a versão completa ou resumida
  * — rolagens do Narrador aparecem com detalhes ocultos para os jogadores.
  */
-export async function broadcastRoll(rollResult, characterName = "—") {
+export async function broadcastRoll(rollResult, characterName = "—", options = {}) {
   if (!isInsideOBR()) return;
   await whenOBRReady();
   try {
@@ -59,6 +59,10 @@ export async function broadcastRoll(rollResult, characterName = "—") {
     try {
       fromPlayerId = OBR.player.id;
     } catch {}
+
+    // Rolagem oculta: não envia broadcast para ninguém.
+    if (options.hidden) return;
+
     await OBR.broadcast.sendMessage(
       CHANNEL_ROLLS,
       { ...rollResult, characterName, fromRole, fromPlayerId },
