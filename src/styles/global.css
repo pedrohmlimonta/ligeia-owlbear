@@ -597,3 +597,27 @@ label {
 .hidden-roll-btn:hover {
   border-color: var(--rubi-bright) !important;
 }
+
+/* Linhas de rolagem com botão de revelar */
+.roll-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.reveal-btn {
+  font-size: 0.7rem !important;
+  padding: 0.15rem 0.45rem !important;
+  background: linear-gradient(135deg, #5a3a14, #8a5a1f) !important;
+  color: #fff !important;
+  border: 1px solid var(--gold) !important;
+  border-radius: 9px !important;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.reveal-btn:hover {
+  background: linear-gradient(135deg, #6a4a18, #a06820) !important;
+}

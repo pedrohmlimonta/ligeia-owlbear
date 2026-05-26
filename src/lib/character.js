@@ -21,6 +21,7 @@ export function createBlankCharacter(name = "Novo Personagem") {
 
     // Tipo
     npc: false,        // se true, fica oculto dos jogadores (só GM vê)
+    rollHidden: false, // se true, todas as rolagens DESTA ficha vão ocultas
     tokenIds: [],      // ids dos items da cena (tokens) vinculados (múltiplos)
     playerId: null,    // id do OBR.player dono dessa ficha (PC)
 
@@ -207,6 +208,7 @@ export function migrateCharacter(char) {
 
   // Novos campos com defaults
   if (typeof c.npc !== "boolean") c.npc = false;
+  if (typeof c.rollHidden !== "boolean") c.rollHidden = false;
   if (typeof c.playerId === "undefined") c.playerId = null;
   if (typeof c.heroicBonus !== "number") c.heroicBonus = 0;
   if (typeof c.grantPlayerGmAccess !== "boolean") c.grantPlayerGmAccess = false;

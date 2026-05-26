@@ -39,13 +39,16 @@ export async function whenOBRReady() {
   return _ready;
 }
 
+const CHANNEL_ROLLS_LOCAL = "ligeia.rolls.local";
+const CHANNEL_REVEAL = "ligeia.rolls.reveal";
+
 /**
  * Envia uma rolagem para o canal compartilhado, para que todos os jogadores
  * na sala vejam o resultado.
  *
- * Inclui o papel de quem rolou (`fromRole`) e o id (`fromPlayerId`), para
- * que os receptores possam decidir mostrar a versão completa ou resumida
- * — rolagens do Narrador aparecem com detalhes ocultos para os jogadores.
+ * - Se `options.hidden === true`, a rolagem é marcada como oculta. Players
+ *   recebem normalmente, mas verão "???" no lugar do total enquanto não for
+ *   revelada pelo Narrador (com `revealRoll`).
  */
 export async function broadcastRoll(rollResult, characterName = "—", options = {}) {
   if (!isInsideOBR()) return;
@@ -60,31 +63,23 @@ export async function broadcastRoll(rollResult, characterName = "—", options =
       fromPlayerId = OBR.player.id;
     } catch {}
 
-    const payload = { ...rollResult, characterName, fromRole, fromPlayerId };
+    const payload = {
+      ...rollResult,
+      characterName,
+      fromRole,
+      fromPlayerId,
+      hidden: !!options.hidden,
+    };
 
-    // Rolagem oculta do GM: só o próprio autor vê. Enviamos somente no canal
-    // local (LOCAL = só esta sessão) para abrir o overlay para si mesmo.
-    if (options.hidden) {
-      try {
-        await OBR.broadcast.sendMessage(
-          "ligeia.rolls.local",
-          { ...payload, hidden: true },
-          { destination: "LOCAL" },
-        );
-      } catch (e) {
-        console.warn(e);
-      }
-      return;
-    }
-
-    // 1) Enviar para todos os outros conectados (mesa)
+    // 1) Enviar para todos os outros (mesa). Players com `hidden: true` ainda
+    //    veem a rolagem aparecer, mas com valor mascarado.
     await OBR.broadcast.sendMessage(CHANNEL_ROLLS, payload, {
       destination: "REMOTE",
     });
 
-    // 2) Disparar overlay para o autor também (LOCAL)
+    // 2) Disparar overlay/histórico também localmente para o autor.
     try {
-      await OBR.broadcast.sendMessage("ligeia.rolls.local", payload, {
+      await OBR.broadcast.sendMessage(CHANNEL_ROLLS_LOCAL, payload, {
         destination: "LOCAL",
       });
     } catch (e) {
@@ -93,6 +88,43 @@ export async function broadcastRoll(rollResult, characterName = "—", options =
   } catch (e) {
     console.warn("Falha ao transmitir rolagem:", e);
   }
+}
+
+/**
+ * O Narrador revela uma rolagem que estava oculta. Todos os clientes
+ * atualizam o histórico/overlay correspondente.
+ */
+export async function revealRoll(rollId) {
+  if (!isInsideOBR() || !rollId) return;
+  await whenOBRReady();
+  try {
+    // Broadcast REMOTO
+    await OBR.broadcast.sendMessage(
+      CHANNEL_REVEAL,
+      { rollId },
+      { destination: "REMOTE" },
+    );
+    // E também LOCAL para que o próprio GM atualize sua UI
+    await OBR.broadcast.sendMessage(
+      CHANNEL_REVEAL,
+      { rollId },
+      { destination: "LOCAL" },
+    );
+  } catch (e) {
+    console.warn("Falha ao revelar rolagem:", e);
+  }
+}
+
+/** Inscreve callback para mensagens de revelação. */
+export function onRollReveal(callback) {
+  if (!isInsideOBR()) return () => {};
+  let unsub = () => {};
+  whenOBRReady().then(() => {
+    unsub = OBR.broadcast.onMessage(CHANNEL_REVEAL, (event) => {
+      callback(event.data);
+    });
+  });
+  return () => unsub();
 }
 
 /**
@@ -125,6 +157,32 @@ export function onRemoteRoll(callback) {
     });
   });
   return () => unsub();
+}
+
+/**
+ * Inscreve um callback que recebe TODAS as rolagens — locais (de quem rola)
+ * e remotas (de outros). Use isto onde o histórico deve mostrar tudo.
+ */
+export function onAnyRoll(callback) {
+  if (!isInsideOBR()) return () => {};
+  const unsubs = [];
+  whenOBRReady().then(() => {
+    unsubs.push(
+      OBR.broadcast.onMessage(CHANNEL_ROLLS, (event) => callback(event.data)),
+    );
+    unsubs.push(
+      OBR.broadcast.onMessage(CHANNEL_ROLLS_LOCAL, (event) =>
+        callback(event.data),
+      ),
+    );
+  });
+  return () => {
+    for (const u of unsubs) {
+      try {
+        u();
+      } catch {}
+    }
+  };
 }
 
 /**

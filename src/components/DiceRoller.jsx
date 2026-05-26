@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { rollLigeia, formatRoll, formatRollForViewer } from "../lib/dice.js";
 import {
   broadcastRoll,
-  onRemoteRoll,
+  onAnyRoll,
+  onRollReveal,
+  revealRoll,
   onRoleChange,
   getMyPlayerId,
 } from "../lib/obr.js";
@@ -48,9 +50,22 @@ export function DiceRoller() {
   }, []);
 
   useEffect(() => {
-    const unsub = onRemoteRoll((roll) => {
+    const unsub = onAnyRoll((roll) => {
+      setHistory((prev) => {
+        // Dedup por rollId
+        if (roll.rollId && prev.find((r) => r.rollId === roll.rollId)) {
+          return prev;
+        }
+        return [roll, ...prev].slice(0, 20);
+      });
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    const unsub = onRollReveal(({ rollId }) => {
       setHistory((prev) =>
-        [{ ...roll, remote: true }, ...prev].slice(0, 20),
+        prev.map((r) => (r.rollId === rollId ? { ...r, hidden: false } : r)),
       );
     });
     return unsub;
@@ -68,9 +83,7 @@ export function DiceRoller() {
       ...overrides,
     });
     setResult(r);
-    setHistory((prev) =>
-      [{ ...r, hidden: hidden && role === "GM" }, ...prev].slice(0, 20),
-    );
+    // Não adiciona local manualmente: o broadcast LOCAL volta via onAnyRoll
     broadcastRoll(r, "Mesa", { hidden: hidden && role === "GM" });
   };
 
@@ -300,29 +313,47 @@ export function DiceRoller() {
               overflowY: "auto",
             }}
           >
-            {history.map((r, i) => (
-              <li
-                key={i}
-                className="tiny"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  color: r.isCritSuccess
-                    ? "var(--crit-success)"
-                    : r.isCritFail
-                    ? "var(--crit-fail)"
-                    : "var(--text-soft)",
-                  padding: "0.25rem 0.4rem",
-                  background: r.remote ? "rgba(139, 42, 42, 0.1)" : "transparent",
-                  borderLeft: r.remote
-                    ? "2px solid var(--rubi)"
-                    : "2px solid var(--gold-dark)",
-                }}
-              >
-                {r.remote && <strong style={{ color: "var(--gold)" }}>{r.characterName} </strong>}
-                {r.hidden && <span title="Rolagem oculta">🕶 </span>}
-                {formatRollForViewer(r, { role, id: myId })}
-              </li>
-            ))}
+            {history.map((r, i) => {
+              const isOther =
+                r.fromPlayerId && myId && r.fromPlayerId !== myId;
+              return (
+                <li
+                  key={r.rollId || i}
+                  className="tiny roll-row"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    color: r.isCritSuccess
+                      ? "var(--crit-success)"
+                      : r.isCritFail
+                      ? "var(--crit-fail)"
+                      : "var(--text-soft)",
+                    padding: "0.25rem 0.4rem",
+                    background: isOther ? "rgba(139, 42, 42, 0.1)" : "transparent",
+                    borderLeft: isOther
+                      ? "2px solid var(--rubi)"
+                      : "2px solid var(--gold-dark)",
+                  }}
+                >
+                  <span style={{ flex: 1 }}>
+                    {isOther && (
+                      <strong style={{ color: "var(--gold)" }}>
+                        {r.characterName}{" "}
+                      </strong>
+                    )}
+                    {formatRollForViewer(r, { role, id: myId })}
+                  </span>
+                  {role === "GM" && r.hidden && r.rollId && (
+                    <button
+                      className="reveal-btn"
+                      onClick={() => revealRoll(r.rollId)}
+                      title="Revelar resultado aos jogadores"
+                    >
+                      👁 Revelar
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

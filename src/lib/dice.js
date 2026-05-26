@@ -75,6 +75,10 @@ export function rollLigeia({
   }
 
   return {
+    rollId:
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Date.now().toString(36),
     label,
     attribute,
     improvement,
@@ -166,12 +170,10 @@ export function formatRollSummary(r) {
  *
  * Regras:
  *  - Quem rolou sempre vê os detalhes completos (própria rolagem).
- *  - Outros GMs também veem os detalhes completos.
- *  - Jogadores que NÃO foram quem rolaram veem versão resumida quando
- *    a rolagem veio do Narrador.
- *
- * `viewer`: { role, id }  — quem está olhando
- * `roll`: objeto de rolagem; pode conter fromRole, fromPlayerId
+ *  - GMs sempre veem o resultado real.
+ *  - Rolagens ocultas (`hidden: true`) NÃO ainda reveladas → players veem "???".
+ *  - Rolagens normais do Narrador → players veem versão resumida (sem dados,
+ *    atributo, bônus — só rótulo + total + crítico).
  */
 export function formatRollForViewer(roll, viewer) {
   if (!roll) return "";
@@ -179,22 +181,30 @@ export function formatRollForViewer(roll, viewer) {
   const viewerId = viewer?.id;
   const fromRole = roll.fromRole || "GM";
   const fromPlayerId = roll.fromPlayerId;
+  const isAuthor = fromPlayerId && viewerId && fromPlayerId === viewerId;
 
-  // Foi o próprio observador quem rolou? mostra completo
-  if (fromPlayerId && viewerId && fromPlayerId === viewerId) {
-    return formatRoll(roll);
+  // GM e o autor sempre veem o real (com prefixo 🕶 se for oculta)
+  if (isAuthor || viewerRole === "GM") {
+    const txt = formatRoll(roll);
+    return roll.hidden ? `🕶 ${txt}` : txt;
   }
-  // Observador é GM? mostra completo
-  if (viewerRole === "GM") return formatRoll(roll);
-  // Rolagem veio do GM e observador é player? resumida
+
+  // Player: rolagem oculta vira "???"
+  if (roll.hidden) {
+    const label = roll.label ? `${roll.label}: ` : "";
+    return `${label}???`;
+  }
+
+  // Player: rolagem normal vinda do Narrador é resumida
   if (fromRole === "GM") return formatRollSummary(roll);
-  // Caso padrão: completo
+
+  // Caso padrão (player rolou e outros players veem): completo
   return formatRoll(roll);
 }
 
 /**
  * Indica se a rolagem deve ter detalhes (dados, atributo, bônus) ocultos
- * para o observador. Útil para a renderização do toast também.
+ * para o observador. Útil para a renderização do toast/overlay também.
  */
 export function shouldHideRollDetails(roll, viewer) {
   if (!roll) return false;
@@ -204,5 +214,22 @@ export function shouldHideRollDetails(roll, viewer) {
   const fromPlayerId = roll.fromPlayerId;
   if (fromPlayerId && viewerId && fromPlayerId === viewerId) return false;
   if (viewerRole === "GM") return false;
+  // Players sempre veem versão sem detalhes quando vier do GM ou for oculta
+  if (roll.hidden) return true;
   return fromRole === "GM";
+}
+
+/**
+ * Indica se o total deve aparecer mascarado (???).
+ * Apenas para rolagens ocultas que ainda não foram reveladas, e para
+ * observadores que não são o autor nem GM.
+ */
+export function shouldMaskRollTotal(roll, viewer) {
+  if (!roll || !roll.hidden) return false;
+  const viewerRole = viewer?.role || "PLAYER";
+  const viewerId = viewer?.id;
+  const fromPlayerId = roll.fromPlayerId;
+  const isAuthor = fromPlayerId && viewerId && fromPlayerId === viewerId;
+  if (isAuthor || viewerRole === "GM") return false;
+  return true;
 }

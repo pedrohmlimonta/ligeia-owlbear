@@ -215,7 +215,9 @@ export function CharacterSheet({ characterId }) {
       r.appliedModifiers = mods.sources;
     }
     setRollToast(r);
-    broadcastRoll(r, character?.name || "—");
+    broadcastRoll(r, character?.name || "—", {
+      hidden: !!character?.rollHidden,
+    });
   };
 
   const secondary = useMemo(
@@ -2059,9 +2061,27 @@ function GmControls({ character, tokenName, onUpdate }) {
           <input
             type="checkbox"
             checked={!!character.npc}
-            onChange={(e) => onUpdate({ npc: e.target.checked })}
+            onChange={(e) => {
+              const npc = e.target.checked;
+              // Ao tornar NPC, ligamos rolagens ocultas por padrão.
+              // Ao deixar de ser NPC, mantemos a configuração atual.
+              onUpdate({ npc, ...(npc ? { rollHidden: true } : {}) });
+            }}
           />
           <span>Marcar como NPC (oculto dos jogadores)</span>
+        </label>
+        <label className="gm-toggle" style={{ marginTop: "0.4rem" }}>
+          <input
+            type="checkbox"
+            checked={!!character.rollHidden}
+            onChange={(e) => onUpdate({ rollHidden: e.target.checked })}
+          />
+          <span>
+            🕶 Rolar ocultamente
+            <div className="tiny muted" style={{ fontWeight: "normal", marginTop: "0.15rem" }}>
+              Jogadores veem "???" no resultado até o Narrador revelar.
+            </div>
+          </span>
         </label>
         {!character.npc && (
           <div style={{ marginTop: "0.5rem" }}>

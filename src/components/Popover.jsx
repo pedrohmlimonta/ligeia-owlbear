@@ -6,7 +6,9 @@ import {
   onCharactersChanged,
   openCharacterSheet,
   openDiceRoller,
-  onRemoteRoll,
+  onAnyRoll,
+  onRollReveal,
+  revealRoll,
   isInsideOBR,
   onRoleChange,
   unlinkItem,
@@ -55,8 +57,24 @@ export function Popover() {
   }, []);
 
   useEffect(() => {
-    const unsub = onRemoteRoll((roll) => {
-      setRecentRolls((prev) => [roll, ...prev].slice(0, 5));
+    const unsub = onAnyRoll((roll) => {
+      setRecentRolls((prev) => {
+        // Dedup por rollId (LOCAL + REMOTE chegam ambos para o autor)
+        if (roll.rollId && prev.find((r) => r.rollId === roll.rollId)) {
+          return prev;
+        }
+        return [roll, ...prev].slice(0, 10);
+      });
+    });
+    return unsub;
+  }, []);
+
+  // Quando o Narrador revela uma rolagem oculta, todos atualizam o histórico.
+  useEffect(() => {
+    const unsub = onRollReveal(({ rollId }) => {
+      setRecentRolls((prev) =>
+        prev.map((r) => (r.rollId === rollId ? { ...r, hidden: false } : r)),
+      );
     });
     return unsub;
   }, []);
@@ -276,11 +294,18 @@ export function Popover() {
       {recentRolls.length > 0 && (
         <div className="panel mt-2">
           <div className="panel-title">Rolagens recentes</div>
-          <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+          <ul
+            style={{
+              listStyle: "none",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.3rem",
+            }}
+          >
             {recentRolls.map((r, i) => (
               <li
-                key={i}
-                className="tiny"
+                key={r.rollId || i}
+                className="tiny roll-row"
                 style={{
                   color: r.isCritSuccess
                     ? "var(--crit-success)"
@@ -290,8 +315,21 @@ export function Popover() {
                   fontFamily: "var(--font-mono)",
                 }}
               >
-                <strong style={{ color: "var(--gold)" }}>{r.characterName}</strong>{" "}
-                — {formatRollForViewer(r, { role, id: myId })}
+                <span style={{ flex: 1 }}>
+                  <strong style={{ color: "var(--gold)" }}>
+                    {r.characterName}
+                  </strong>{" "}
+                  — {formatRollForViewer(r, { role, id: myId })}
+                </span>
+                {isGM && r.hidden && r.rollId && (
+                  <button
+                    className="reveal-btn"
+                    onClick={() => revealRoll(r.rollId)}
+                    title="Revelar resultado aos jogadores"
+                  >
+                    👁 Revelar
+                  </button>
+                )}
               </li>
             ))}
           </ul>
