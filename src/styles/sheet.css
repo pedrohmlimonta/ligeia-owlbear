@@ -1093,3 +1093,193 @@
   display: flex;
   gap: 0.5rem;
 }
+
+/* =========================================================================
+   Bloco de Detalhes do Item (slots/descrição/custos/efeitos)
+   ========================================================================= */
+.item-details-body {
+  margin-top: 0.4rem;
+  padding: 0.5rem;
+  background: rgba(212, 166, 73, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Grid de slots (Alvo / Área / Alcance / Duração / Conjurar) */
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.4rem;
+}
+
+.slot-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.slot-input label {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold-soft);
+}
+
+.slot-input input {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.4rem;
+}
+
+/* Descrição (textarea livre) */
+.desc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.desc-field label {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold-soft);
+}
+
+.desc-field textarea {
+  font-size: 0.88rem;
+  padding: 0.3rem 0.5rem;
+  resize: vertical;
+  min-height: 60px;
+  font-family: var(--font-body);
+}
+
+/* Descrições por nível (skills) */
+.skill-descs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+/* Custos */
+.costs-editor {
+  background: rgba(139, 42, 42, 0.05);
+  border: 1px solid #8b2a2a55;
+  border-radius: 3px;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.costs-title {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #d28080;
+}
+
+.cost-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.5fr) 60px 1fr 24px;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.cost-value {
+  text-align: center;
+}
+
+.cost-label {
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.effects-badge.cost-badge {
+  background: #8b2a2a;
+  color: #fff;
+}
+
+/* Retrato do personagem */
+.portrait-wrap {
+  width: 76px;
+  height: 76px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  border: 1.5px solid var(--gold-soft);
+  background: var(--bg-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.portrait-wrap.empty {
+  border: 1.5px dashed var(--border-strong);
+  color: var(--text-muted);
+}
+
+.portrait-wrap.empty.editable {
+  cursor: pointer;
+}
+
+.portrait-wrap.empty.editable:hover {
+  border-color: var(--gold-soft);
+  color: var(--gold-soft);
+}
+
+.portrait-placeholder {
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 0 0.3rem;
+}
+
+.portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.portrait-controls {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+
+.portrait-wrap.has-image:hover .portrait-controls {
+  opacity: 1;
+}
+
+.portrait-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0 !important;
+  font-size: 0.7rem !important;
+  background: rgba(0, 0, 0, 0.75) !important;
+  border: 1px solid var(--gold-soft) !important;
+  color: var(--gold) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.portrait-btn.danger {
+  border-color: #c0392b !important;
+  color: #e8908a !important;
+}
+
+/* No modo readonly, esconde controles do retrato */
+.sheet-readonly .portrait-controls { display: none; }

@@ -7,7 +7,6 @@ import {
   getMyPlayerId,
 } from "../lib/obr.js";
 import { DiceTray } from "./Die3D.jsx";
-import { LiveRollOverlay } from "./LiveRollOverlay.jsx";
 
 const ATTRIBUTE_PRESETS = [
   { key: "forca", label: "Força" },
@@ -48,14 +47,11 @@ export function DiceRoller() {
     getMyPlayerId().then(setMyId);
   }, []);
 
-  const [liveRoll, setLiveRoll] = useState(null);
-
   useEffect(() => {
     const unsub = onRemoteRoll((roll) => {
       setHistory((prev) =>
         [{ ...roll, remote: true }, ...prev].slice(0, 20),
       );
-      setLiveRoll(roll);
     });
     return unsub;
   }, []);
@@ -99,12 +95,6 @@ export function DiceRoller() {
 
   return (
     <div style={{ padding: "1rem", minHeight: "100vh" }}>
-      <LiveRollOverlay
-        roll={liveRoll}
-        viewer={{ role, id: myId }}
-        onDismiss={() => setLiveRoll(null)}
-      />
-
       <header className="brand-header" style={{ paddingTop: 0 }}>
         <div className="brand-mark" style={{ fontSize: "1.2rem" }}>
           ROLADOR

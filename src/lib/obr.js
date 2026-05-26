@@ -60,16 +60,55 @@ export async function broadcastRoll(rollResult, characterName = "—", options =
       fromPlayerId = OBR.player.id;
     } catch {}
 
-    // Rolagem oculta: não envia broadcast para ninguém.
-    if (options.hidden) return;
+    const payload = { ...rollResult, characterName, fromRole, fromPlayerId };
 
-    await OBR.broadcast.sendMessage(
-      CHANNEL_ROLLS,
-      { ...rollResult, characterName, fromRole, fromPlayerId },
-      { destination: "REMOTE" }, // os outros recebem; o autor processa local
-    );
+    // Rolagem oculta do GM: só o próprio autor vê. Enviamos somente no canal
+    // local (LOCAL = só esta sessão) para abrir o overlay para si mesmo.
+    if (options.hidden) {
+      try {
+        await OBR.broadcast.sendMessage(
+          "ligeia.rolls.local",
+          { ...payload, hidden: true },
+          { destination: "LOCAL" },
+        );
+      } catch (e) {
+        console.warn(e);
+      }
+      return;
+    }
+
+    // 1) Enviar para todos os outros conectados (mesa)
+    await OBR.broadcast.sendMessage(CHANNEL_ROLLS, payload, {
+      destination: "REMOTE",
+    });
+
+    // 2) Disparar overlay para o autor também (LOCAL)
+    try {
+      await OBR.broadcast.sendMessage("ligeia.rolls.local", payload, {
+        destination: "LOCAL",
+      });
+    } catch (e) {
+      console.warn(e);
+    }
   } catch (e) {
     console.warn("Falha ao transmitir rolagem:", e);
+  }
+}
+
+/**
+ * Fecha o popover de overlay de rolagem (chamado de dentro da própria
+ * janela de overlay quando o usuário clica em fechar).
+ */
+export async function closeRollOverlay() {
+  if (!isInsideOBR()) {
+    window.close();
+    return;
+  }
+  await whenOBRReady();
+  try {
+    await OBR.popover.close("ligeia.rollOverlay");
+  } catch {
+    window.close();
   }
 }
 

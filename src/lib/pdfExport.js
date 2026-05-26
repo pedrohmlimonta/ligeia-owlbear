@@ -98,6 +98,45 @@ function renderEffects(effects) {
     .join("")}</ul>`;
 }
 
+const COST_RESOURCE_LABELS = {
+  mp: "PM",
+  hp: "PV",
+  hpTemp: "PV temp",
+  heroic: "Pt. Heroico",
+};
+
+function renderCosts(costs) {
+  if (!costs || costs.length === 0) return "";
+  return `<div class="costs-box"><strong>Custo:</strong> ${costs
+    .map((c) => {
+      const lbl = COST_RESOURCE_LABELS[c.resource] || c.resource;
+      const note = c.label ? ` <small>(${ESC(c.label)})</small>` : "";
+      return `<span class="cost-chip">${c.value} ${lbl}${note}</span>`;
+    })
+    .join(" ")}</div>`;
+}
+
+function renderSlots(item, kind) {
+  const slots = [];
+  if (kind === "spell" && item.casting) slots.push(["Conjurar", item.casting]);
+  if (item.target) slots.push(["Alvo", item.target]);
+  if (item.area) slots.push(["Área", item.area]);
+  if (item.range) slots.push(["Alcance", item.range]);
+  if (item.duration) slots.push(["Duração", item.duration]);
+  if (slots.length === 0) return "";
+  return `<div class="slots-box">${slots
+    .map(
+      ([l, v]) =>
+        `<span class="slot-chip"><em>${ESC(l)}:</em> ${ESC(v)}</span>`,
+    )
+    .join(" ")}</div>`;
+}
+
+function renderDescriptionBlock(text, label) {
+  if (!text || !text.trim()) return "";
+  return `<div class="desc-box"><div class="desc-label">${ESC(label)}</div><div class="desc-text">${ESC(text).replace(/\n/g, "<br>")}</div></div>`;
+}
+
 function renderAttribute(c, key) {
   const a = attr(c, key);
   return `
@@ -187,7 +226,10 @@ function renderAttacks(c) {
             <td>${ESC(ATTR_LABELS[a.attribute] || a.attribute)}</td>
             <td>${a.bonus ? `+${a.bonus}` : "—"}</td>
             <td>${a.dice ? `+${a.dice}D` : "—"}</td>
-            <td>${ESC(a.properties)}</td>
+            <td>
+              ${ESC(a.properties)}
+              ${renderDescriptionBlock(a.description, "Descrição")}
+            </td>
           </tr>
         `,
           )
@@ -220,6 +262,11 @@ function renderSkills(c) {
                 ${lvl}
                 ${mode}
               </div>
+              ${renderSlots(s, "skill")}
+              ${renderCosts(s.costs)}
+              ${renderDescriptionBlock(s.descBasic, "Descrição — Básico")}
+              ${renderDescriptionBlock(s.descAdvanced, "Descrição — Avançado")}
+              ${renderDescriptionBlock(s.descSpecial, "Descrição — Especial")}
               ${renderEffects(s.effects)}
             </li>
           `;
@@ -261,6 +308,8 @@ function renderEquipment(c) {
             <td>${it.weight || 0}</td>
             <td>
               ${ESC(it.notes || "")}
+              ${renderDescriptionBlock(it.description, "Descrição")}
+              ${renderCosts(it.costs)}
               ${renderEffects(it.effects)}
             </td>
           </tr>
@@ -324,6 +373,9 @@ function renderGrimoire(c) {
                   .join(" ")}</div>`
               : ""
           }
+          ${renderSlots(g, "spell")}
+          ${renderCosts(g.costs)}
+          ${renderDescriptionBlock(g.description, "Descrição")}
           ${renderEffects(g.effects)}
         </li>
       `,
@@ -676,18 +728,82 @@ export function characterToPrintableHtml(character) {
     z-index: 1000;
   }
   @media print { .print-bar { display: none; } }
+
+  /* Retrato no cabeçalho */
+  .cover-row { display: flex; gap: 0.8em; align-items: center; justify-content: center; }
+  .cover-portrait {
+    width: 110px;
+    height: 110px;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  .cover-text { flex: 0 1 auto; text-align: center; }
+
+  /* Slots (alvo/área/alcance/duração/conjurar) */
+  .slots-box {
+    margin: 0.3em 0;
+    font-size: 9.5pt;
+  }
+  .slot-chip {
+    display: inline-block;
+    background: #faf4e3;
+    border: 1px solid var(--line);
+    padding: 0.1em 0.4em;
+    margin: 0 0.15em 0.15em 0;
+    border-radius: 3px;
+  }
+  .slot-chip em { font-style: normal; color: var(--gold-soft); font-family: "Cinzel", serif; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* Custos */
+  .costs-box {
+    margin: 0.3em 0;
+    font-size: 9.5pt;
+  }
+  .costs-box strong { color: var(--rubi); margin-right: 0.4em; }
+  .cost-chip {
+    display: inline-block;
+    background: #fbe6e6;
+    border: 1px solid #c98080;
+    padding: 0.1em 0.4em;
+    margin: 0 0.15em 0.15em 0;
+    border-radius: 9px;
+    font-weight: 600;
+    color: #6b2020;
+  }
+
+  /* Descrições com label */
+  .desc-box { margin: 0.3em 0 0.4em; padding-left: 0.5em; border-left: 2px solid var(--line); }
+  .desc-label {
+    font-family: "Cinzel", serif;
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gold-soft);
+  }
+  .desc-text { margin-top: 0.1em; }
 </style>
 </head>
 <body>
 
 <header class="cover">
   <div class="brand">L · I · G · E · I · A &nbsp; · &nbsp; R P G</div>
-  <div class="char-name">${ESC(c.name || "—")}</div>
-  ${
-    c.concept
-      ? `<div class="char-meta">${ESC(c.concept)}</div>`
-      : ""
-  }
+  <div class="cover-row">
+    ${
+      c.image
+        ? `<img src="${ESC(c.image)}" alt="Retrato" class="cover-portrait" />`
+        : ""
+    }
+    <div class="cover-text">
+      <div class="char-name">${ESC(c.name || "—")}</div>
+      ${
+        c.concept
+          ? `<div class="char-meta">${ESC(c.concept)}</div>`
+          : ""
+      }
+    </div>
+  </div>
   <div class="identity-line">
     <div><strong>Raça</strong>${ESC(c.race) || "—"}</div>
     <div><strong>Vocação</strong>${ESC(c.vocation) || "—"}</div>

@@ -26,6 +26,7 @@ export function createBlankCharacter(name = "Novo Personagem") {
 
     // Identidade
     name,
+    image: "",          // data URL da imagem do personagem (retrato)
     concept: "",
     race: "",
     heritage: "—",
@@ -111,31 +112,49 @@ export function deriveSecondary(char, activeEffects = []) {
   const iniBase = Math.max(p, ag);
   const iniDice = p >= ag ? a.percepcao.dice : a.agilidade.dice;
 
-  // Soma deltas dos efeitos de stat
+  // Soma deltas dos efeitos de stat e procura overrides "set"
   let dIni = 0, dDef = 0, dDesloc = 0;
+  const overrides = {};
   for (const e of activeEffects) {
-    if (e.type !== "stat") continue;
     const val = Number(e.value) || 0;
-    if (e.target === "initiative") dIni += val;
-    else if (e.target === "defense") dDef += val;
-    else if (e.target === "deslocamento") dDesloc += val;
+    if (e.type === "stat") {
+      if (e.target === "initiative") dIni += val;
+      else if (e.target === "defense") dDef += val;
+      else if (e.target === "deslocamento") dDesloc += val;
+    } else if (e.type === "set") {
+      // Maior valor vence quando há múltiplos overrides do mesmo alvo
+      if (overrides[e.target] == null || val > overrides[e.target]) {
+        overrides[e.target] = val;
+      }
+    }
   }
 
+  const pick = (key, fallback) =>
+    overrides[key] != null ? overrides[key] : fallback;
+
   return {
-    bloqueio: { value: (s.bloqueio.override ?? f) + dDef, dice: a.forca.dice },
-    carga: { value: s.carga.override ?? f, unit: "kg" },
-    esquiva: { value: (s.esquiva.override ?? ag) + dDef, dice: a.agilidade.dice },
+    bloqueio: { value: pick("bloqueio", (s.bloqueio.override ?? f) + dDef), dice: a.forca.dice },
+    carga: { value: pick("carga", s.carga.override ?? f), unit: "kg" },
+    esquiva: { value: pick("esquiva", (s.esquiva.override ?? ag) + dDef), dice: a.agilidade.dice },
     deslocamento: {
-      value:
+      value: pick(
+        "deslocamento",
         (s.deslocamento.override ?? ag) +
-        (s.deslocamento.raceBonus || 0) +
-        dDesloc,
+          (s.deslocamento.raceBonus || 0) +
+          dDesloc,
+      ),
       unit: "m",
     },
-    sonoFomeSed: { value: s.sonoFomeSed.override ?? v },
-    conjuracao: { value: s.conjuracao.override ?? m, dice: a.mente.dice },
-    iniciativa: { value: (s.iniciativa.override ?? iniBase) + dIni, dice: iniDice },
-    percepcaoPassiva: { value: s.percepcaoPassiva.override ?? p, dice: a.percepcao.dice },
+    sonoFomeSed: { value: pick("sonoFomeSed", s.sonoFomeSed.override ?? v) },
+    conjuracao: { value: pick("conjuracao", s.conjuracao.override ?? m), dice: a.mente.dice },
+    iniciativa: {
+      value: pick("iniciativa", (s.iniciativa.override ?? iniBase) + dIni),
+      dice: iniDice,
+    },
+    percepcaoPassiva: {
+      value: pick("percepcao_passiva", s.percepcaoPassiva.override ?? p),
+      dice: a.percepcao.dice,
+    },
   };
 }
 
@@ -204,31 +223,80 @@ export function migrateCharacter(char) {
   }
   delete c.tokenId; // remove campo antigo
 
-  // Helper para adicionar campos de efeitos a um item
-  const withEffects = (item) => ({
-    mode: item.mode === "active" ? "active" : "passive",
-    active: !!item.active,
-    effects: Array.isArray(item.effects) ? item.effects : [],
-    ...item,
-    // re-aplica após o spread para garantir defaults nas chaves ausentes
-  });
-  const normalizeEffects = (item) => ({
-    ...item,
-    mode: item.mode === "active" ? "active" : "passive",
-    active: !!item.active,
-    effects: Array.isArray(item.effects)
-      ? item.effects.map((e) => ({
+  // Helper para normalizar uma lista de efeitos
+  const normalizeEffectList = (effects) =>
+    Array.isArray(effects)
+      ? effects.map((e) => ({
           type: e.type || "bonus",
           target: e.target || "all",
           value: typeof e.value === "number" ? e.value : Number(e.value) || 0,
           label: typeof e.label === "string" ? e.label : "",
         }))
-      : [],
+      : [];
+
+  // Helper para normalizar custos (mana, vida, ponto heroico, ...)
+  const normalizeCostList = (costs) =>
+    Array.isArray(costs)
+      ? costs.map((c) => ({
+          resource: c.resource || "mp", // mp | hp | heroic | hpTemp
+          value: Number(c.value) || 0,
+          label: typeof c.label === "string" ? c.label : "",
+        }))
+      : [];
+
+  // Normaliza campos comuns a items ativáveis
+  const normalizeEffects = (item) => ({
+    ...item,
+    mode: item.mode === "active" ? "active" : "passive",
+    active: !!item.active,
+    effects: normalizeEffectList(item.effects),
+    costs: normalizeCostList(item.costs),
+    description: typeof item.description === "string" ? item.description : "",
+  });
+
+  // Normalizadores específicos por categoria
+  const normalizeSkill = (s) => {
+    const base = normalizeEffects(s);
+    return {
+      ...base,
+      // Descrições por nível (Básico/Avançado/Especial)
+      descBasic: typeof s.descBasic === "string" ? s.descBasic : base.description || "",
+      descAdvanced: typeof s.descAdvanced === "string" ? s.descAdvanced : "",
+      descSpecial: typeof s.descSpecial === "string" ? s.descSpecial : "",
+      // Slots de ficha técnica
+      target: typeof s.target === "string" ? s.target : "",
+      area: typeof s.area === "string" ? s.area : "",
+      range: typeof s.range === "string" ? s.range : "",
+      duration: typeof s.duration === "string" ? s.duration : "",
+    };
+  };
+
+  const normalizeSpell = (g) => {
+    const base = normalizeEffects(g);
+    return {
+      ...base,
+      casting: typeof g.casting === "string" ? g.casting : "",
+      target: typeof g.target === "string" ? g.target : "",
+      area: typeof g.area === "string" ? g.area : "",
+      range: typeof g.range === "string" ? g.range : "",
+      duration: typeof g.duration === "string" ? g.duration : "",
+    };
+  };
+
+  const normalizeEquipment = (e) => normalizeEffects(e);
+
+  const normalizeAttack = (a) => ({
+    weapon: a.weapon || "",
+    attribute: a.attribute || "forca",
+    bonus: Number(a.bonus) || 0,
+    dice: Number(a.dice) || 0,
+    properties: a.properties || "",
+    description: typeof a.description === "string" ? a.description : "",
   });
 
   // Habilidades
   if (Array.isArray(c.skills)) {
-    c.skills = c.skills.map(normalizeEffects);
+    c.skills = c.skills.map(normalizeSkill);
   } else {
     c.skills = [];
   }
@@ -240,10 +308,10 @@ export function migrateCharacter(char) {
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
     c.equipment = lines.map((line) =>
-      normalizeEffects({ name: line, qty: 1, weight: 0, notes: "" })
+      normalizeEquipment({ name: line, qty: 1, weight: 0, notes: "" })
     );
   } else if (Array.isArray(c.equipment)) {
-    c.equipment = c.equipment.map(normalizeEffects);
+    c.equipment = c.equipment.map(normalizeEquipment);
   } else {
     c.equipment = [];
   }
@@ -252,13 +320,16 @@ export function migrateCharacter(char) {
   if (!Array.isArray(c.attacks)) {
     c.attacks = [];
   } else {
-    c.attacks = c.attacks.filter(
-      (a) =>
-        (a.weapon && a.weapon.trim()) ||
-        a.bonus ||
-        a.dice ||
-        (a.properties && a.properties.trim())
-    );
+    c.attacks = c.attacks
+      .filter(
+        (a) =>
+          (a.weapon && a.weapon.trim()) ||
+          a.bonus ||
+          a.dice ||
+          (a.properties && a.properties.trim()) ||
+          (a.description && a.description.trim())
+      )
+      .map(normalizeAttack);
   }
 
   // Magia
@@ -283,7 +354,7 @@ export function migrateCharacter(char) {
             (entry.base && entry.base.trim()) ||
             entry.metamagics.some((m) => m && m.trim())
         )
-        .map(normalizeEffects);
+        .map(normalizeSpell);
     }
   }
 

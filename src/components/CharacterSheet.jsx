@@ -3,7 +3,6 @@ import {
   loadCharacters,
   saveCharacterToRoom,
   broadcastRoll,
-  onRemoteRoll,
   onRoleChange,
   getSelectedItemIds,
   linkCharacterToItem,
@@ -26,11 +25,13 @@ import {
   collectActiveEffects,
   getRollModifiers,
   getStatModifiers,
+  getStatOverride,
   summarizeEffects,
   isItemActive,
   isEffectEnabled,
   EFFECT_ROLL_TARGETS,
   EFFECT_STAT_TARGETS,
+  EFFECT_SET_TARGETS,
   EFFECT_TYPES,
 } from "../lib/effects.js";
 import {
@@ -39,7 +40,6 @@ import {
   readFileAsText,
 } from "../lib/importExport.js";
 import { openPrintableSheet } from "../lib/pdfExport.js";
-import { LiveRollOverlay } from "./LiveRollOverlay.jsx";
 import {
   RACES,
   HERITAGES,
@@ -59,7 +59,6 @@ export function CharacterSheet({ characterId }) {
   const [character, setCharacter] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rollToast, setRollToast] = useState(null);
-  const [liveRoll, setLiveRoll] = useState(null);
   const [role, setRole] = useState("GM");
   const [tokenName, setTokenName] = useState(null);
   const [myId, setMyId] = useState(null);
@@ -67,11 +66,6 @@ export function CharacterSheet({ characterId }) {
 
   useEffect(() => {
     return onRoleChange(setRole);
-  }, []);
-
-  useEffect(() => {
-    const unsub = onRemoteRoll((roll) => setLiveRoll(roll));
-    return unsub;
   }, []);
 
   useEffect(() => {
@@ -195,15 +189,28 @@ export function CharacterSheet({ characterId }) {
    */
   const rollWith = (label, attributeValue, diceCount, extraBonus = 0, ctx = {}) => {
     const mods = getRollModifiers(activeEffects, ctx);
+    // Se houver efeito SET sobre este atributo primário, ele sobrescreve o valor base
+    let effectiveAttr = attributeValue;
+    if (ctx.attribute) {
+      const ovr = getStatOverride(activeEffects, ctx.attribute);
+      if (ovr) {
+        effectiveAttr = ovr.value;
+        mods.sources.push({
+          source: ovr.source,
+          type: "set",
+          value: ovr.value,
+          label: `define ${ctx.attribute} = ${ovr.value}`,
+        });
+      }
+    }
     const totalDice = (diceCount || 0) + mods.dice;
     const totalBonus = (extraBonus || 0) + mods.bonus;
     const r = rollLigeia({
       label,
-      attribute: attributeValue,
+      attribute: effectiveAttr,
       improvement: totalDice,
       bonus: totalBonus,
     });
-    // Anexa informações dos modificadores aplicados (para o toast)
     if (mods.sources.length) {
       r.appliedModifiers = mods.sources;
     }
@@ -267,12 +274,6 @@ export function CharacterSheet({ characterId }) {
   return (
     <EditPermContext.Provider value={canEdit}>
     <div className={"sheet " + (canEdit ? "" : "sheet-readonly")}>
-      <LiveRollOverlay
-        roll={liveRoll}
-        viewer={{ role, id: myId }}
-        onDismiss={() => setLiveRoll(null)}
-      />
-
       {/* Toast de rolagem */}
       {rollToast && (
         <div
@@ -348,6 +349,11 @@ export function CharacterSheet({ characterId }) {
 
       {/* Cabeçalho com logo */}
       <header className="sheet-header">
+        <PortraitInput
+          value={character.image}
+          onChange={(v) => update({ image: v })}
+          canEdit={canEdit}
+        />
         <div className="brand-block">
           <div className="brand-mark">LIGEIA</div>
           <div className="brand-sub">RPG</div>
@@ -1015,6 +1021,11 @@ function AttackBlock({ attack, attributes, onChange, onRoll, onRemove }) {
           onChange={(e) => onChange({ properties: e.target.value })}
           placeholder="Propriedades (dano, alcance, etc.)"
         />
+        <ItemEffectsBlock
+          item={attack}
+          onChange={onChange}
+          kind="attack"
+        />
       </div>
     </div>
   );
@@ -1103,6 +1114,7 @@ function EquipmentPanel({ items, onChange }) {
             <ItemEffectsBlock
               item={item}
               onChange={(patch) => updateItem(i, patch)}
+              kind="equipment"
             />
           </div>
         ))}
@@ -1209,6 +1221,7 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
             <ItemEffectsBlock
               item={s}
               onChange={(patch) => updateSkill(i, patch)}
+              kind="skill"
             />
           </div>
         ))}
@@ -1375,6 +1388,7 @@ function MagicSection({ character, onChange, onRoll }) {
             <ItemEffectsBlock
               item={entry}
               onChange={(patch) => updateGrimoire(i, patch)}
+              kind="spell"
             />
           </div>
         ))}
@@ -1461,6 +1475,8 @@ function EffectsEditor({ effects, onChange, canEdit = true }) {
     let target = e.target;
     if (newType === "stat") {
       if (!EFFECT_STAT_TARGETS.find((t) => t.id === target)) target = "max_hp";
+    } else if (newType === "set") {
+      if (!EFFECT_SET_TARGETS.find((t) => t.id === target)) target = "forca";
     } else if (newType === "dice" || newType === "bonus") {
       if (!EFFECT_ROLL_TARGETS.find((t) => t.id === target)) target = "all";
     }
@@ -1476,9 +1492,14 @@ function EffectsEditor({ effects, onChange, canEdit = true }) {
         const enabled = isEffectEnabled(e);
         const isInfo = e.type === "info";
         const isStat = e.type === "stat";
+        const isSet = e.type === "set";
         const isRoll = e.type === "dice" || e.type === "bonus";
-        const hasTarget = isRoll || isStat;
-        const targets = isStat ? EFFECT_STAT_TARGETS : EFFECT_ROLL_TARGETS;
+        const hasTarget = isRoll || isStat || isSet;
+        const targets = isSet
+          ? EFFECT_SET_TARGETS
+          : isStat
+          ? EFFECT_STAT_TARGETS
+          : EFFECT_ROLL_TARGETS;
         return (
           <div
             key={i}
@@ -1565,39 +1586,283 @@ function EffectsEditor({ effects, onChange, canEdit = true }) {
   );
 }
 
-function ItemEffectsBlock({ item, onChange }) {
+/**
+ * Bloco unificado de detalhes de um item ativável (habilidade, equipamento, magia).
+ * - `kind` define quais campos extras mostrar:
+ *     "skill"      → descrições por nível (B/A/E) + alvo/área/alcance/duração
+ *     "spell"      → conjurar + alvo/área/alcance/duração
+ *     "equipment"  → descrição livre
+ *     "attack"     → descrição livre (sem custos/efeitos)
+ * - `showCostsEffects` controla se mostra Efeitos e Custos (default true).
+ */
+function ItemEffectsBlock({ item, onChange, kind = "skill" }) {
   const canEdit = useContext(EditPermContext);
-  // Aberto por padrão quando tem efeitos (para o jogador ver o toggle).
-  const [open, setOpen] = useState((item.effects || []).length > 0);
-  const count = (item.effects || []).length;
+  const hasContent =
+    (item.effects || []).length > 0 ||
+    (item.costs || []).length > 0 ||
+    item.description ||
+    item.descBasic ||
+    item.descAdvanced ||
+    item.descSpecial ||
+    item.target ||
+    item.area ||
+    item.range ||
+    item.duration ||
+    item.casting;
+
+  const [open, setOpen] = useState(hasContent);
   const active = isItemActive(item);
-  const hasEffects = count > 0;
+
+  const effCount = (item.effects || []).length;
+  const costCount = (item.costs || []).length;
+  const showSlots = kind === "skill" || kind === "spell";
+  const showCostsEffects = kind !== "attack";
 
   return (
-    <div className={"item-effects " + (active && hasEffects ? "is-active" : "")}>
+    <div className={"item-effects " + (active && effCount > 0 ? "is-active" : "")}>
       <div className="item-effects-bar">
-        <ActiveToggle
-          mode={item.mode}
-          active={item.active}
-          onChange={(patch) => onChange(patch)}
-          compact
-          canEdit={canEdit}
-        />
+        {showCostsEffects && (
+          <ActiveToggle
+            mode={item.mode}
+            active={item.active}
+            onChange={(patch) => onChange(patch)}
+            compact
+            canEdit={canEdit}
+          />
+        )}
         <button
           className="effects-toggle"
           onClick={() => setOpen(!open)}
-          title="Mostrar/ocultar efeitos"
+          title={open ? "Ocultar detalhes" : "Mostrar detalhes"}
         >
-          ⚙ Efeitos {count > 0 && <span className="effects-badge">{count}</span>}
+          🔍 Detalhes
+          {effCount > 0 && (
+            <span className="effects-badge" title="Efeitos">
+              ⚙ {effCount}
+            </span>
+          )}
+          {costCount > 0 && (
+            <span className="effects-badge cost-badge" title="Custos">
+              ◈ {costCount}
+            </span>
+          )}
           <span className="effects-chevron">{open ? "▾" : "▸"}</span>
         </button>
       </div>
+
       {open && (
-        <EffectsEditor
-          effects={item.effects || []}
-          onChange={(effects) => onChange({ effects })}
+        <div className="item-details-body">
+          {/* Slots de ficha técnica */}
+          {showSlots && (
+            <SlotsEditor
+              item={item}
+              kind={kind}
+              onChange={onChange}
+              canEdit={canEdit}
+            />
+          )}
+
+          {/* Descrição(ões) */}
+          {kind === "skill" ? (
+            <SkillDescriptions item={item} onChange={onChange} canEdit={canEdit} />
+          ) : (
+            <DescriptionField
+              value={item.description || ""}
+              onChange={(v) => onChange({ description: v })}
+              canEdit={canEdit}
+            />
+          )}
+
+          {/* Custos */}
+          {showCostsEffects && (
+            <CostsEditor
+              costs={item.costs || []}
+              onChange={(costs) => onChange({ costs })}
+              canEdit={canEdit}
+            />
+          )}
+
+          {/* Efeitos */}
+          {showCostsEffects && (
+            <EffectsEditor
+              effects={item.effects || []}
+              onChange={(effects) => onChange({ effects })}
+              canEdit={canEdit}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SlotsEditor({ item, kind, onChange, canEdit }) {
+  return (
+    <div className="slots-grid">
+      {kind === "spell" && (
+        <SlotInput
+          label="Conjurar"
+          value={item.casting || ""}
+          onChange={(v) => onChange({ casting: v })}
           canEdit={canEdit}
         />
+      )}
+      <SlotInput
+        label="Alvo"
+        value={item.target || ""}
+        onChange={(v) => onChange({ target: v })}
+        canEdit={canEdit}
+      />
+      <SlotInput
+        label="Área"
+        value={item.area || ""}
+        onChange={(v) => onChange({ area: v })}
+        canEdit={canEdit}
+      />
+      <SlotInput
+        label="Alcance"
+        value={item.range || ""}
+        onChange={(v) => onChange({ range: v })}
+        canEdit={canEdit}
+      />
+      <SlotInput
+        label="Duração"
+        value={item.duration || ""}
+        onChange={(v) => onChange({ duration: v })}
+        canEdit={canEdit}
+      />
+    </div>
+  );
+}
+
+function SlotInput({ label, value, onChange, canEdit }) {
+  return (
+    <div className="slot-input">
+      <label>{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={!canEdit}
+        placeholder="—"
+      />
+    </div>
+  );
+}
+
+function DescriptionField({ value, onChange, canEdit, label = "Descrição" }) {
+  return (
+    <div className="desc-field">
+      <label>{label}</label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={!canEdit}
+        placeholder="—"
+        rows={3}
+      />
+    </div>
+  );
+}
+
+function SkillDescriptions({ item, onChange, canEdit }) {
+  return (
+    <div className="skill-descs">
+      <DescriptionField
+        value={item.descBasic || ""}
+        onChange={(v) => onChange({ descBasic: v })}
+        canEdit={canEdit}
+        label="Descrição — Básico"
+      />
+      <DescriptionField
+        value={item.descAdvanced || ""}
+        onChange={(v) => onChange({ descAdvanced: v })}
+        canEdit={canEdit}
+        label="Descrição — Avançado"
+      />
+      <DescriptionField
+        value={item.descSpecial || ""}
+        onChange={(v) => onChange({ descSpecial: v })}
+        canEdit={canEdit}
+        label="Descrição — Especial"
+      />
+    </div>
+  );
+}
+
+const COST_RESOURCES = [
+  { id: "mp", label: "Mana (PM)" },
+  { id: "hp", label: "Vida (PV)" },
+  { id: "hpTemp", label: "Vida temporária" },
+  { id: "heroic", label: "Ponto Heroico" },
+];
+
+function CostsEditor({ costs, onChange, canEdit }) {
+  const list = costs || [];
+  const addCost = () => {
+    onChange([...list, { resource: "mp", value: 1, label: "" }]);
+  };
+  const updateCost = (i, patch) => {
+    const copy = [...list];
+    copy[i] = { ...copy[i], ...patch };
+    onChange(copy);
+  };
+  const removeCost = (i) => {
+    onChange(list.filter((_, idx) => idx !== i));
+  };
+
+  return (
+    <div className="costs-editor">
+      <div className="costs-title">Custos</div>
+      {list.length === 0 && (
+        <div className="tiny muted effects-empty">Sem custos.</div>
+      )}
+      {list.map((c, i) => (
+        <div key={i} className="cost-row">
+          <select
+            value={c.resource}
+            onChange={(e) => updateCost(i, { resource: e.target.value })}
+            disabled={!canEdit}
+            title="Recurso gasto"
+          >
+            {COST_RESOURCES.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            value={c.value}
+            onChange={(e) => updateCost(i, { value: Number(e.target.value) })}
+            disabled={!canEdit}
+            className="cost-value"
+            title="Quantidade gasta"
+          />
+          <input
+            type="text"
+            value={c.label || ""}
+            onChange={(e) => updateCost(i, { label: e.target.value })}
+            disabled={!canEdit}
+            placeholder="Nota (opcional)"
+            className="cost-label"
+          />
+          {canEdit && (
+            <button
+              className="danger"
+              onClick={() => removeCost(i)}
+              style={{ padding: "0.2rem 0.35rem", fontSize: "0.65rem" }}
+              title="Remover custo"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      ))}
+      {canEdit && (
+        <button onClick={addCost} className="effect-add-btn">
+          + Adicionar custo
+        </button>
       )}
     </div>
   );
@@ -1916,6 +2181,78 @@ function ImportButton({ onImport }) {
         type="file"
         accept="application/json,.json"
         onChange={handleChange}
+        style={{ display: "none" }}
+      />
+    </label>
+  );
+}
+
+/* =========================================================================
+   Retrato do personagem (imagem em data URL)
+   ========================================================================= */
+function PortraitInput({ value, onChange, canEdit }) {
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    // Aceita até ~5MB (acima disso o data URL pesa demais na room metadata)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Imagem muito grande (máx 5MB). Use uma versão menor.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onChange(String(reader.result || ""));
+    reader.onerror = () => alert("Falha ao ler a imagem.");
+    reader.readAsDataURL(file);
+  };
+
+  const handleClear = () => {
+    if (confirm("Remover a imagem do personagem?")) onChange("");
+  };
+
+  if (value) {
+    return (
+      <div className="portrait-wrap has-image">
+        <img src={value} alt="Retrato" className="portrait-img" />
+        {canEdit && (
+          <div className="portrait-controls">
+            <label className="portrait-btn">
+              ✎
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFile}
+                style={{ display: "none" }}
+              />
+            </label>
+            <button
+              className="portrait-btn danger"
+              onClick={handleClear}
+              title="Remover imagem"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (!canEdit) {
+    return (
+      <div className="portrait-wrap empty">
+        <span className="portrait-placeholder">sem retrato</span>
+      </div>
+    );
+  }
+
+  return (
+    <label className="portrait-wrap empty editable" title="Adicionar imagem">
+      <span className="portrait-placeholder">+ retrato</span>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleFile}
         style={{ display: "none" }}
       />
     </label>

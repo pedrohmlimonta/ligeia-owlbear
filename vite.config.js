@@ -16,6 +16,8 @@ export default defineConfig({
         main: "index.html",
         sheet: "sheet.html",
         dice: "dice.html",
+        rollOverlay: "roll-overlay.html",
+        background: "background.html",
       },
     },
   },

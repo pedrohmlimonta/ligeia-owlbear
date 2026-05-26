@@ -19,12 +19,10 @@ import {
 import { createBlankCharacter, migrateCharacter } from "../lib/character.js";
 import { formatRoll, formatRollForViewer } from "../lib/dice.js";
 import { parseImportedJson, readFileAsText } from "../lib/importExport.js";
-import { LiveRollOverlay } from "./LiveRollOverlay.jsx";
 
 export function Popover() {
   const [characters, setCharacters] = useState({});
   const [recentRolls, setRecentRolls] = useState([]);
-  const [liveRoll, setLiveRoll] = useState(null);
   const [role, setRole] = useState("GM");
   const [myId, setMyId] = useState(null);
   const [party, setParty] = useState([]);
@@ -59,7 +57,6 @@ export function Popover() {
   useEffect(() => {
     const unsub = onRemoteRoll((roll) => {
       setRecentRolls((prev) => [roll, ...prev].slice(0, 5));
-      setLiveRoll(roll);
     });
     return unsub;
   }, []);
@@ -197,12 +194,6 @@ export function Popover() {
 
   return (
     <div style={{ padding: "0.75rem", minHeight: "100vh" }}>
-      <LiveRollOverlay
-        roll={liveRoll}
-        viewer={{ role, id: myId }}
-        onDismiss={() => setLiveRoll(null)}
-      />
-
       <header className="brand-header">
         <div className="brand-mark">LIGEIA</div>
         <div className="brand-sub">RPG</div>

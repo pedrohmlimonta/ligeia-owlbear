@@ -53,11 +53,27 @@ export const EFFECT_STAT_TARGETS = [
   { id: "deslocamento", label: "Deslocamento" },
 ];
 
+/** Lista de targets para SET (define um valor fixo enquanto ativo) */
+export const EFFECT_SET_TARGETS = [
+  { id: "forca", label: "Força (valor)" },
+  { id: "agilidade", label: "Agilidade (valor)" },
+  { id: "vigor", label: "Vigor (valor)" },
+  { id: "mente", label: "Mente (valor)" },
+  { id: "percepcao", label: "Percepção (valor)" },
+  { id: "bloqueio", label: "Bloqueio (valor)" },
+  { id: "esquiva", label: "Esquiva (valor)" },
+  { id: "conjuracao", label: "Conjuração (valor)" },
+  { id: "iniciativa", label: "Iniciativa (valor)" },
+  { id: "deslocamento", label: "Deslocamento" },
+  { id: "percepcao_passiva", label: "Percepção Passiva" },
+];
+
 /** Lista de tipos exibida no editor */
 export const EFFECT_TYPES = [
   { id: "dice", label: "+Dados de Melhoria (rolagem)" },
   { id: "bonus", label: "+Bônus em Rolagem" },
   { id: "stat", label: "Modificar Valor (PV/PM/...)" },
+  { id: "set", label: "Definir Valor (atributo/secundário)" },
   { id: "damage", label: "Bônus de Dano" },
   { id: "rd", label: "Redução de Dano" },
   { id: "info", label: "Condição / Texto" },
@@ -149,6 +165,26 @@ export function getStatModifiers(activeEffects, statKey) {
     sources.push({ source: e.source, value: v, label: e.label });
   }
   return { delta, sources };
+}
+
+/**
+ * Verifica se algum efeito do tipo `set` está definindo um valor fixo
+ * para o atributo/secundário informado. Se houver mais de um, vence
+ * o de maior valor (regra simples e previsível).
+ *
+ * Retorna `{ value, source }` ou `null` se não houver override.
+ */
+export function getStatOverride(activeEffects, statKey) {
+  let best = null;
+  for (const e of activeEffects) {
+    if (e.type !== "set") continue;
+    if (e.target !== statKey) continue;
+    const v = Number(e.value) || 0;
+    if (best === null || v > best.value) {
+      best = { value: v, source: e.source, label: e.label };
+    }
+  }
+  return best;
 }
 
 /**

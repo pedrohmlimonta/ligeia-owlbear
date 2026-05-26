@@ -454,14 +454,13 @@ label {
 
 /* ===========================================================================
    Overlay de rolagem ao vivo (animação 3D + resultado)
+   Renderizado dentro de um popover OBR cujo iframe é transparente.
    =========================================================================== */
 .live-roll-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: transparent; /* o popover do OBR fica sobre o canvas; sem dimmer */
   display: flex;
   align-items: center;
   justify-content: center;
