@@ -242,6 +242,9 @@ export function migrateCharacter(char) {
           target: e.target || "all",
           value: typeof e.value === "number" ? e.value : Number(e.value) || 0,
           label: typeof e.label === "string" ? e.label : "",
+          // Preserva o estado de ligado/desligado entre sessões.
+          // Default true para efeitos antigos que não tinham essa flag.
+          enabled: e.enabled === false ? false : true,
         }))
       : [];
 
