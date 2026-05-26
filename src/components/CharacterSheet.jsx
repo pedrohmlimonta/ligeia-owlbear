@@ -615,7 +615,29 @@ export function CharacterSheet({ characterId }) {
             }
             derived={[
               { label: "Esquiva", value: secondary.esquiva.value, onRoll: () => rollWith("Esquiva", secondary.esquiva.value, secondary.esquiva.dice, 0, { attribute: "agilidade" }) },
-              { label: "Deslocamento", value: `${secondary.deslocamento.value} m`, onRoll: null },
+              {
+                label: "Deslocamento",
+                value: (
+                  <SecondaryWithBonus
+                    value={secondary.deslocamento.value}
+                    unit="m"
+                    bonus={character.secondary.deslocamento.bonus || 0}
+                    onBonusChange={(v) =>
+                      update({
+                        secondary: {
+                          ...character.secondary,
+                          deslocamento: {
+                            ...character.secondary.deslocamento,
+                            bonus: v,
+                          },
+                        },
+                      })
+                    }
+                    showBonus={isGM}
+                  />
+                ),
+                onRoll: null,
+              },
             ]}
           />
 
@@ -1798,7 +1820,7 @@ function SkillDescriptions({ item, onChange, canEdit }) {
         value={item.descSpecial || ""}
         onChange={(v) => onChange({ descSpecial: v })}
         canEdit={canEdit}
-        label="Descrição — Épica"
+        label="Descrição — Épico"
       />
     </div>
   );
@@ -2270,5 +2292,35 @@ function PortraitInput({ value, onChange, canEdit }) {
         style={{ display: "none" }}
       />
     </label>
+  );
+}
+
+/* =========================================================================
+   Valor derivado com bônus opcional do Narrador (ex: Deslocamento)
+   ========================================================================= */
+function SecondaryWithBonus({ value, unit, bonus, onBonusChange, showBonus }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: "0.25rem" }}>
+        <span>{value}</span>
+        {unit && (
+          <span style={{ color: "var(--text-muted)", fontSize: "0.7rem" }}>
+            {unit}
+          </span>
+        )}
+      </div>
+      {showBonus && (
+        <div className="resource-bonus" title="Bônus/penalidade do Narrador">
+          <span className="tiny muted">Ajuste:</span>
+          <input
+            type="number"
+            value={bonus || 0}
+            onChange={(e) => onBonusChange(Number(e.target.value))}
+            onClick={(e) => e.stopPropagation()}
+            className="resource-bonus-input"
+          />
+        </div>
+      )}
+    </div>
   );
 }

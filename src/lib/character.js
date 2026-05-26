@@ -58,7 +58,7 @@ export function createBlankCharacter(name = "Novo Personagem") {
       bloqueio: { override: null }, // padrão = força
       carga: { override: null },
       esquiva: { override: null }, // padrão = agilidade
-      deslocamento: { override: null, raceBonus: 0 },
+      deslocamento: { override: null, raceBonus: 0, bonus: 0 },
       sonoFomeSed: { override: null }, // padrão = vigor
       conjuracao: { override: null }, // padrão = mente
       iniciativa: { override: null }, // padrão = max(per, agi)
@@ -141,6 +141,7 @@ export function deriveSecondary(char, activeEffects = []) {
         "deslocamento",
         (s.deslocamento.override ?? ag) +
           (s.deslocamento.raceBonus || 0) +
+          (s.deslocamento.bonus || 0) +
           dDesloc,
       ),
       unit: "m",
@@ -212,6 +213,16 @@ export function migrateCharacter(char) {
   if (c.hp && typeof c.hp.bonus !== "number") c.hp = { ...c.hp, bonus: 0 };
   if (c.hp && typeof c.hp.temp !== "number") c.hp = { ...c.hp, temp: 0 };
   if (c.mp && typeof c.mp.bonus !== "number") c.mp = { ...c.mp, bonus: 0 };
+  if (
+    c.secondary &&
+    c.secondary.deslocamento &&
+    typeof c.secondary.deslocamento.bonus !== "number"
+  ) {
+    c.secondary = {
+      ...c.secondary,
+      deslocamento: { ...c.secondary.deslocamento, bonus: 0 },
+    };
+  }
 
   // tokenId (string única, antigo) → tokenIds (array)
   if (!Array.isArray(c.tokenIds)) {
