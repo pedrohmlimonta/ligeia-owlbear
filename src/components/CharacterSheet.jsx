@@ -1205,7 +1205,7 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
               <button
                 className={"skill-checkbox " + (s.level === "E" ? "active" : "")}
                 onClick={() => setLevel(i, "E")}
-                title="Especial"
+                title="Épico"
               >
                 {s.level === "E" ? "●" : ""}
               </button>
@@ -1597,9 +1597,8 @@ function EffectsEditor({ effects, onChange, canEdit = true }) {
  */
 function ItemEffectsBlock({ item, onChange, kind = "skill" }) {
   const canEdit = useContext(EditPermContext);
-  const hasContent =
-    (item.effects || []).length > 0 ||
-    (item.costs || []).length > 0 ||
+
+  const hasDetails =
     item.description ||
     item.descBasic ||
     item.descAdvanced ||
@@ -1608,9 +1607,13 @@ function ItemEffectsBlock({ item, onChange, kind = "skill" }) {
     item.area ||
     item.range ||
     item.duration ||
-    item.casting;
+    item.casting ||
+    (item.costs || []).length > 0;
 
-  const [open, setOpen] = useState(hasContent);
+  const hasEffects = (item.effects || []).length > 0;
+
+  const [detailsOpen, setDetailsOpen] = useState(hasDetails);
+  const [effectsOpen, setEffectsOpen] = useState(hasEffects);
   const active = isItemActive(item);
 
   const effCount = (item.effects || []).length;
@@ -1619,7 +1622,7 @@ function ItemEffectsBlock({ item, onChange, kind = "skill" }) {
   const showCostsEffects = kind !== "attack";
 
   return (
-    <div className={"item-effects " + (active && effCount > 0 ? "is-active" : "")}>
+    <div className={"item-effects " + (active && hasEffects ? "is-active" : "")}>
       <div className="item-effects-bar">
         {showCostsEffects && (
           <ActiveToggle
@@ -1632,25 +1635,35 @@ function ItemEffectsBlock({ item, onChange, kind = "skill" }) {
         )}
         <button
           className="effects-toggle"
-          onClick={() => setOpen(!open)}
-          title={open ? "Ocultar detalhes" : "Mostrar detalhes"}
+          onClick={() => setDetailsOpen(!detailsOpen)}
+          title={detailsOpen ? "Ocultar detalhes" : "Mostrar detalhes"}
         >
           🔍 Detalhes
-          {effCount > 0 && (
-            <span className="effects-badge" title="Efeitos">
-              ⚙ {effCount}
-            </span>
-          )}
           {costCount > 0 && (
             <span className="effects-badge cost-badge" title="Custos">
               ◈ {costCount}
             </span>
           )}
-          <span className="effects-chevron">{open ? "▾" : "▸"}</span>
+          <span className="effects-chevron">{detailsOpen ? "▾" : "▸"}</span>
         </button>
+        {showCostsEffects && (
+          <button
+            className="effects-toggle"
+            onClick={() => setEffectsOpen(!effectsOpen)}
+            title={effectsOpen ? "Ocultar efeitos" : "Mostrar efeitos"}
+          >
+            ⚙ Efeitos
+            {effCount > 0 && (
+              <span className="effects-badge" title="Quantidade de efeitos">
+                {effCount}
+              </span>
+            )}
+            <span className="effects-chevron">{effectsOpen ? "▾" : "▸"}</span>
+          </button>
+        )}
       </div>
 
-      {open && (
+      {detailsOpen && (
         <div className="item-details-body">
           {/* Slots de ficha técnica */}
           {showSlots && (
@@ -1681,15 +1694,16 @@ function ItemEffectsBlock({ item, onChange, kind = "skill" }) {
               canEdit={canEdit}
             />
           )}
+        </div>
+      )}
 
-          {/* Efeitos */}
-          {showCostsEffects && (
-            <EffectsEditor
-              effects={item.effects || []}
-              onChange={(effects) => onChange({ effects })}
-              canEdit={canEdit}
-            />
-          )}
+      {effectsOpen && showCostsEffects && (
+        <div className="item-details-body">
+          <EffectsEditor
+            effects={item.effects || []}
+            onChange={(effects) => onChange({ effects })}
+            canEdit={canEdit}
+          />
         </div>
       )}
     </div>
@@ -1784,7 +1798,7 @@ function SkillDescriptions({ item, onChange, canEdit }) {
         value={item.descSpecial || ""}
         onChange={(v) => onChange({ descSpecial: v })}
         canEdit={canEdit}
-        label="Descrição — Especial"
+        label="Descrição — Épica"
       />
     </div>
   );
