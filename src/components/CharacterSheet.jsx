@@ -1622,22 +1622,11 @@ function EffectsEditor({ effects, onChange, canEdit = true }) {
 function ItemEffectsBlock({ item, onChange, kind = "skill" }) {
   const canEdit = useContext(EditPermContext);
 
-  const hasDetails =
-    item.description ||
-    item.descBasic ||
-    item.descAdvanced ||
-    item.descSpecial ||
-    item.target ||
-    item.area ||
-    item.range ||
-    item.duration ||
-    item.casting ||
-    (item.costs || []).length > 0;
-
   const hasEffects = (item.effects || []).length > 0;
 
-  const [detailsOpen, setDetailsOpen] = useState(hasDetails);
-  const [effectsOpen, setEffectsOpen] = useState(hasEffects);
+  // Sempre começa fechado ao montar o componente / abrir a ficha.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [effectsOpen, setEffectsOpen] = useState(false);
   const active = isItemActive(item);
 
   const effCount = (item.effects || []).length;
