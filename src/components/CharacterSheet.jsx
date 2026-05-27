@@ -1272,17 +1272,24 @@ function MagicSection({ character, onChange, onRoll }) {
     onChange({ magic: { ...character.magic, grimoire } });
   };
 
-  const updateMetamagic = (i, j, value) => {
+  const updateMetamagic = (i, j, patch) => {
     const grimoire = [...character.magic.grimoire];
     const metamagics = [...(grimoire[i].metamagics || [])];
-    metamagics[j] = value;
+    const cur =
+      typeof metamagics[j] === "string"
+        ? { name: metamagics[j], wordId: "" }
+        : metamagics[j] || { name: "", wordId: "" };
+    metamagics[j] = { ...cur, ...patch };
     grimoire[i] = { ...grimoire[i], metamagics };
     onChange({ magic: { ...character.magic, grimoire } });
   };
 
   const addMetamagic = (i) => {
     const grimoire = [...character.magic.grimoire];
-    const metamagics = [...(grimoire[i].metamagics || []), ""];
+    const metamagics = [
+      ...(grimoire[i].metamagics || []),
+      { name: "", wordId: "" },
+    ];
     grimoire[i] = { ...grimoire[i], metamagics };
     onChange({ magic: { ...character.magic, grimoire } });
   };
@@ -1341,7 +1348,7 @@ function MagicSection({ character, onChange, onRoll }) {
                   ...character.magic,
                   grimoire: [
                     ...character.magic.grimoire,
-                    { base: "", metamagics: [] },
+                    { base: "", wordId: "", metamagics: [] },
                   ],
                 },
               })
@@ -1375,22 +1382,33 @@ function MagicSection({ character, onChange, onRoll }) {
                 ✕
               </button>
             </div>
-            <input
-              type="text"
-              value={entry.base}
-              onChange={(e) => updateGrimoire(i, { base: e.target.value })}
-              placeholder="Nome da magia base..."
-            />
+            <div className="spell-row">
+              <input
+                type="text"
+                value={entry.base}
+                onChange={(e) => updateGrimoire(i, { base: e.target.value })}
+                placeholder="Nome da magia base..."
+                style={{ flex: 1 }}
+              />
+              <WordSelect
+                value={entry.wordId || ""}
+                onChange={(wordId) => updateGrimoire(i, { wordId })}
+              />
+            </div>
             {(entry.metamagics || []).map((meta, j) => (
               <div key={j} className="metamagic">
                 <label>Metamagia {j + 1}</label>
-                <div className="row gap-2">
+                <div className="spell-row">
                   <input
                     type="text"
-                    value={meta}
-                    onChange={(e) => updateMetamagic(i, j, e.target.value)}
+                    value={meta.name || ""}
+                    onChange={(e) => updateMetamagic(i, j, { name: e.target.value })}
                     placeholder="—"
                     style={{ flex: 1 }}
+                  />
+                  <WordSelect
+                    value={meta.wordId || ""}
+                    onChange={(wordId) => updateMetamagic(i, j, { wordId })}
                   />
                   <button
                     className="danger"
@@ -2331,5 +2349,28 @@ function SecondaryWithBonus({ value, unit, bonus, onBonusChange, showBonus }) {
         </div>
       )}
     </div>
+  );
+}
+
+/* =========================================================================
+   Seletor de Palavra Arcana (usado em magias base e metamagias)
+   ========================================================================= */
+function WordSelect({ value, onChange }) {
+  const canEdit = useContext(EditPermContext);
+  return (
+    <select
+      className="word-select"
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={!canEdit}
+      title="Palavra arcana"
+    >
+      <option value="">— palavra —</option>
+      {ARCANE_WORDS.map((w) => (
+        <option key={w.id} value={w.id}>
+          {w.name}
+        </option>
+      ))}
+    </select>
   );
 }

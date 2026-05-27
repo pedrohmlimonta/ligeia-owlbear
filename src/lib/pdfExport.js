@@ -351,6 +351,12 @@ function renderArcaneWords(c) {
 function renderGrimoire(c) {
   const list = c.magic?.grimoire || [];
   if (list.length === 0) return `<p class="empty">Grimório vazio.</p>`;
+  // Helper para encontrar a palavra pelo id
+  const wordName = (id) => {
+    if (!id) return "";
+    const w = ARCANE_WORDS.find((x) => x.id === id);
+    return w ? w.name : id;
+  };
   return `
     <ul class="grimoire-list">
       ${list
@@ -360,6 +366,11 @@ function renderGrimoire(c) {
           <div class="g-head">
             <strong>${ESC(g.base) || `Magia ${i + 1}`}</strong>
             ${
+              g.wordId
+                ? `<span class="word-pill">${ESC(wordName(g.wordId))}</span>`
+                : ""
+            }
+            ${
               g.mode === "active"
                 ? `<span class="mode active">Ativável${g.active ? " (em uso)" : ""}</span>`
                 : `<span class="mode passive">Passiva</span>`
@@ -368,8 +379,20 @@ function renderGrimoire(c) {
           ${
             g.metamagics && g.metamagics.length
               ? `<div class="metamagics">Metamagias: ${g.metamagics
-                  .filter((m) => m && m.trim())
-                  .map((m) => `<span class="meta-tag">${ESC(m)}</span>`)
+                  .map((m) => {
+                    if (typeof m === "string") {
+                      if (!m.trim()) return "";
+                      return `<span class="meta-tag">${ESC(m)}</span>`;
+                    }
+                    const name = m.name || "";
+                    const word = m.wordId ? wordName(m.wordId) : "";
+                    if (!name.trim() && !word) return "";
+                    const wordPart = word
+                      ? ` <em class="meta-word">[${ESC(word)}]</em>`
+                      : "";
+                    return `<span class="meta-tag">${ESC(name) || "—"}${wordPart}</span>`;
+                  })
+                  .filter(Boolean)
                   .join(" ")}</div>`
               : ""
           }
@@ -685,6 +708,24 @@ export function characterToPrintableHtml(character) {
     border-radius: 6px;
     margin-right: 0.2em;
     font-size: 9pt;
+  }
+  .meta-word {
+    color: var(--gold-soft);
+    font-style: italic;
+    font-size: 8.5pt;
+  }
+  .word-pill {
+    display: inline-block;
+    margin-left: 0.4em;
+    background: linear-gradient(135deg, #faf4e3, #f0e3c3);
+    border: 1px solid var(--gold);
+    color: var(--gold-soft);
+    padding: 0.05em 0.5em;
+    border-radius: 9px;
+    font-family: "Cinzel", serif;
+    font-size: 8.5pt;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
   .prose-block {

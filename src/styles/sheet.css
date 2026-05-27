@@ -1283,3 +1283,26 @@
 
 /* No modo readonly, esconde controles do retrato */
 .sheet-readonly .portrait-controls { display: none; }
+
+/* Linha com input principal + select de palavra arcana */
+.spell-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.word-select {
+  flex: 0 0 auto;
+  width: 130px;
+  font-size: 0.78rem !important;
+  padding: 0.25rem 0.4rem !important;
+  background: rgba(212, 166, 73, 0.06) !important;
+  border: 1px solid var(--gold-soft) !important;
+  color: var(--gold) !important;
+  font-family: var(--font-display);
+}
+
+.word-select option {
+  background: var(--bg-deep);
+  color: var(--text);
+}

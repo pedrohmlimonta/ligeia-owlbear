@@ -289,13 +289,27 @@ export function migrateCharacter(char) {
 
   const normalizeSpell = (g) => {
     const base = normalizeEffects(g);
+    // Metamagias migram de strings → { name, wordId }
+    const metamagics = Array.isArray(g.metamagics)
+      ? g.metamagics
+          .map((m) => {
+            if (typeof m === "string") return { name: m, wordId: "" };
+            return {
+              name: typeof m.name === "string" ? m.name : "",
+              wordId: typeof m.wordId === "string" ? m.wordId : "",
+            };
+          })
+          // Mantém metamagias com nome OU palavra (não filtra vazias que estejam só com word)
+      : [];
     return {
       ...base,
+      wordId: typeof g.wordId === "string" ? g.wordId : "",
       casting: typeof g.casting === "string" ? g.casting : "",
       target: typeof g.target === "string" ? g.target : "",
       area: typeof g.area === "string" ? g.area : "",
       range: typeof g.range === "string" ? g.range : "",
       duration: typeof g.duration === "string" ? g.duration : "",
+      metamagics,
     };
   };
 
@@ -361,15 +375,19 @@ export function migrateCharacter(char) {
         .map((entry) => ({
           ...entry,
           base: entry.base || "",
-          metamagics: Array.isArray(entry.metamagics)
-            ? entry.metamagics.filter((m) => typeof m === "string")
-            : [],
+          // Mantém todas metamagias; o normalizeSpell trata o formato
+          metamagics: Array.isArray(entry.metamagics) ? entry.metamagics : [],
         }))
-        .filter(
-          (entry) =>
-            (entry.base && entry.base.trim()) ||
-            entry.metamagics.some((m) => m && m.trim())
-        )
+        .filter((entry) => {
+          // Mantém entradas com base preenchida, palavra escolhida ou
+          // qualquer metamagia com conteúdo
+          if (entry.base && String(entry.base).trim()) return true;
+          if (entry.wordId && String(entry.wordId).trim()) return true;
+          return (entry.metamagics || []).some((m) => {
+            if (typeof m === "string") return m.trim();
+            return (m && (m.name || m.wordId)) ? true : false;
+          });
+        })
         .map(normalizeSpell);
     }
   }
