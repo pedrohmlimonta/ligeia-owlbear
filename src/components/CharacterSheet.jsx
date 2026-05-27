@@ -51,6 +51,7 @@ import { ARCANE_WORDS } from "../data/magicWords.js";
 import { SKILLS_LIBRARY } from "../data/skillsLibrary.js";
 import { SPELLS_LIBRARY } from "../data/spellsLibrary.js";
 import { EQUIPMENT_LIBRARY } from "../data/equipmentLibrary.js";
+import { TRAITS_LIBRARY } from "../data/traitsLibrary.js";
 import { LibraryPicker } from "./LibraryPicker.jsx";
 import { DiceTray } from "./Die3D.jsx";
 
@@ -785,6 +786,11 @@ export function CharacterSheet({ characterId }) {
 
         {/* Coluna direita: habilidades + equipamentos */}
         <div className="col gap-2">
+          <TraitsPanel
+            traits={character.traits || []}
+            onChange={(traits) => update({ traits })}
+          />
+
           <SkillsPanel
             skills={character.skills}
             attributes={character.attributes}
@@ -1303,6 +1309,117 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   Painel de Traços (raciais, de herança, peculiaridades do personagem)
+   ========================================================================= */
+function TraitsPanel({ traits, onChange }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const addTrait = (libTrait) => {
+    if (libTrait) {
+      onChange([
+        ...traits,
+        {
+          name: libTrait.name,
+          source: libTrait.source || "",
+          description: libTrait.description || "",
+        },
+      ]);
+    } else {
+      onChange([...traits, { name: "", source: "", description: "" }]);
+    }
+    setPickerOpen(false);
+  };
+
+  const updateTrait = (i, patch) => {
+    const copy = [...traits];
+    copy[i] = { ...copy[i], ...patch };
+    onChange(copy);
+  };
+
+  const removeTrait = (i) => {
+    onChange(traits.filter((_, idx) => idx !== i));
+  };
+
+  return (
+    <div className="panel">
+      {pickerOpen && (
+        <LibraryPicker
+          title="Adicionar Traço"
+          library={TRAITS_LIBRARY}
+          kind="trait"
+          onPick={addTrait}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+      <div className="panel-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>Traços</span>
+        <button
+          onClick={() => setPickerOpen(true)}
+          style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem" }}
+        >
+          + Adicionar
+        </button>
+      </div>
+      <p className="tiny muted" style={{ marginBottom: "0.5rem" }}>
+        Características naturais — raciais, de herança ou peculiaridades.
+      </p>
+      {traits.length === 0 && (
+        <div className="muted tiny" style={{ padding: "0.5rem 0", textAlign: "center" }}>
+          Nenhum traço. Clique em "+ Adicionar".
+        </div>
+      )}
+      {traits.map((t, i) => (
+        <TraitRow
+          key={i}
+          trait={t}
+          onChange={(patch) => updateTrait(i, patch)}
+          onRemove={() => removeTrait(i)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function TraitRow({ trait, onChange, onRemove }) {
+  const canEdit = useContext(EditPermContext);
+  return (
+    <div className="trait-row">
+      <div className="trait-head">
+        <input
+          type="text"
+          value={trait.name || ""}
+          onChange={(e) => onChange({ name: e.target.value })}
+          placeholder="Nome do traço..."
+          className="trait-name"
+        />
+        <input
+          type="text"
+          value={trait.source || ""}
+          onChange={(e) => onChange({ source: e.target.value })}
+          placeholder="Origem (raça, herança...)"
+          className="trait-source"
+        />
+        {canEdit && (
+          <button
+            className="danger"
+            onClick={onRemove}
+            style={{ padding: "0.2rem 0.4rem", fontSize: "0.65rem" }}
+            title="Remover traço"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      <ItemEffectsBlock
+        item={trait}
+        onChange={onChange}
+        kind="equipment"
+      />
     </div>
   );
 }

@@ -240,6 +240,37 @@ function renderAttacks(c) {
   `;
 }
 
+function renderTraits(c) {
+  const list = c.traits || [];
+  if (list.length === 0) return `<p class="empty">Sem traços.</p>`;
+  return `
+    <ul class="skill-list">
+      ${list
+        .map((t) => {
+          const sourceTag = t.source
+            ? `<span class="trait-source-tag">${ESC(t.source)}</span>`
+            : "";
+          const mode = t.mode === "active"
+            ? `<span class="mode active">Ativável${t.active ? " (ligado)" : ""}</span>`
+            : "";
+          return `
+            <li>
+              <div class="skill-head">
+                <strong>${ESC(t.name) || "—"}</strong>
+                ${sourceTag}
+                ${mode}
+              </div>
+              ${renderDescriptionBlock(t.description, "Descrição")}
+              ${renderCosts(t.costs)}
+              ${renderEffects(t.effects)}
+            </li>
+          `;
+        })
+        .join("")}
+    </ul>
+  `;
+}
+
 function renderSkills(c) {
   const list = c.skills || [];
   if (list.length === 0) return `<p class="empty">Sem habilidades.</p>`;
@@ -744,6 +775,16 @@ export function characterToPrintableHtml(character) {
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
+  .trait-source-tag {
+    display: inline-block;
+    margin-left: 0.4em;
+    background: #efe6d0;
+    color: var(--ink-soft);
+    padding: 0.05em 0.4em;
+    border-radius: 6px;
+    font-size: 8pt;
+    font-style: italic;
+  }
 
   .prose-block {
     margin-top: 0.5em;
@@ -889,6 +930,9 @@ ${renderSecondaries(c)}
 
 <h2>Ataques</h2>
 ${renderAttacks(c)}
+
+<h2>Traços</h2>
+${renderTraits(c)}
 
 <h2>Habilidades</h2>
 ${renderSkills(c)}

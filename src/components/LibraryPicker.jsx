@@ -85,6 +85,8 @@ export function LibraryPicker({ title, library, kind, onPick, onClose }) {
                 label = `${it.name} [pré-req: ${it.prereq}]`;
               } else if (kind === "equipment" && it.category) {
                 label = `${it.name} — ${it.category}`;
+              } else if (kind === "trait" && it.source) {
+                label = `${it.name} — ${it.source}`;
               }
               return (
                 <option key={it.id} value={it.id}>
@@ -170,6 +172,16 @@ export function LibraryPicker({ title, library, kind, onPick, onClose }) {
                       <strong>Preço:</strong> {selected.price}
                     </p>
                   )}
+                </>
+              )}
+              {kind === "trait" && (
+                <>
+                  {selected.source && (
+                    <p className="muted small">
+                      <strong>Origem:</strong> {selected.source}
+                    </p>
+                  )}
+                  <p>{selected.description}</p>
                 </>
               )}
             </div>

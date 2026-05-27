@@ -79,6 +79,11 @@ export function createBlankCharacter(name = "Novo Personagem") {
     // Habilidades (cada uma com nível B/A/E + modo/efeitos)
     skills: [], // [{ name, level, attribute, mode, active, effects: [...] }]
 
+    // Traços (raciais, de herança, ou peculiaridades do personagem)
+    // Cada traço tem: { name, source, description, mode, active, effects[], costs[] }
+    // source pode ser: "race", "heritage", "background", "other"
+    traits: [],
+
     // Equipamentos (lista de itens com efeitos)
     equipment: [], // [{ name, qty, weight, notes, mode, active, effects: [...] }]
 
@@ -318,6 +323,14 @@ export function migrateCharacter(char) {
 
   const normalizeEquipment = (e) => normalizeEffects(e);
 
+  const normalizeTrait = (t) => {
+    const base = normalizeEffects(t);
+    return {
+      ...base,
+      source: typeof t.source === "string" ? t.source : "other",
+    };
+  };
+
   const normalizeAttack = (a) => ({
     weapon: a.weapon || "",
     attribute: a.attribute || "forca",
@@ -332,6 +345,13 @@ export function migrateCharacter(char) {
     c.skills = c.skills.map(normalizeSkill);
   } else {
     c.skills = [];
+  }
+
+  // Traços
+  if (Array.isArray(c.traits)) {
+    c.traits = c.traits.map(normalizeTrait);
+  } else {
+    c.traits = [];
   }
 
   // Equipamento: string → array

@@ -111,6 +111,7 @@ export function collectActiveEffects(character) {
   for (const it of character.equipment || []) push(it, "equipment", "Equipamento");
   for (const sp of (character.magic && character.magic.grimoire) || [])
     push(sp, "spell", "Magia");
+  for (const t of character.traits || []) push(t, "trait", "Traço");
   return out;
 }
 
