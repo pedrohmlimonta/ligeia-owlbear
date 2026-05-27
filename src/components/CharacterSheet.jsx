@@ -1229,7 +1229,7 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
               <button
                 className={"skill-checkbox " + (s.level === "E" ? "active" : "")}
                 onClick={() => setLevel(i, "E")}
-                title="Épico"
+                title="Especial"
               >
                 {s.level === "E" ? "●" : ""}
               </button>
@@ -1288,7 +1288,7 @@ function MagicSection({ character, onChange, onRoll }) {
     const grimoire = [...character.magic.grimoire];
     const metamagics = [
       ...(grimoire[i].metamagics || []),
-      { name: "", wordId: "" },
+      { name: "", wordId: "", description: "" },
     ];
     grimoire[i] = { ...grimoire[i], metamagics };
     onChange({ magic: { ...character.magic, grimoire } });
@@ -1396,30 +1396,13 @@ function MagicSection({ character, onChange, onRoll }) {
               />
             </div>
             {(entry.metamagics || []).map((meta, j) => (
-              <div key={j} className="metamagic">
-                <label>Metamagia {j + 1}</label>
-                <div className="spell-row">
-                  <input
-                    type="text"
-                    value={meta.name || ""}
-                    onChange={(e) => updateMetamagic(i, j, { name: e.target.value })}
-                    placeholder="—"
-                    style={{ flex: 1 }}
-                  />
-                  <WordSelect
-                    value={meta.wordId || ""}
-                    onChange={(wordId) => updateMetamagic(i, j, { wordId })}
-                  />
-                  <button
-                    className="danger"
-                    onClick={() => removeMetamagic(i, j)}
-                    style={{ padding: "0.2rem 0.4rem", fontSize: "0.65rem" }}
-                    title="Remover metamagia"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
+              <MetamagicRow
+                key={j}
+                index={j}
+                meta={meta}
+                onChange={(patch) => updateMetamagic(i, j, patch)}
+                onRemove={() => removeMetamagic(i, j)}
+              />
             ))}
             <button
               onClick={() => addMetamagic(i)}
@@ -1837,7 +1820,7 @@ function SkillDescriptions({ item, onChange, canEdit }) {
         value={item.descSpecial || ""}
         onChange={(v) => onChange({ descSpecial: v })}
         canEdit={canEdit}
-        label="Descrição — Épico"
+        label="Descrição — Especial"
       />
     </div>
   );
@@ -2380,5 +2363,59 @@ function WordSelect({ value, onChange }) {
         </option>
       ))}
     </select>
+  );
+}
+
+/* =========================================================================
+   Metamagia: linha + botão Detalhes que mostra a descrição
+   ========================================================================= */
+function MetamagicRow({ index, meta, onChange, onRemove }) {
+  const canEdit = useContext(EditPermContext);
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="metamagic">
+      <label>Metamagia {index + 1}</label>
+      <div className="spell-row">
+        <input
+          type="text"
+          value={meta.name || ""}
+          onChange={(e) => onChange({ name: e.target.value })}
+          placeholder="—"
+          style={{ flex: 1 }}
+        />
+        <WordSelect
+          value={meta.wordId || ""}
+          onChange={(wordId) => onChange({ wordId })}
+        />
+        <button
+          className="effects-toggle"
+          onClick={() => setOpen(!open)}
+          title={open ? "Ocultar descrição" : "Mostrar descrição"}
+        >
+          🔍 Detalhes
+          <span className="effects-chevron">{open ? "▾" : "▸"}</span>
+        </button>
+        {canEdit && (
+          <button
+            className="danger"
+            onClick={onRemove}
+            style={{ padding: "0.2rem 0.4rem", fontSize: "0.65rem" }}
+            title="Remover metamagia"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="item-details-body" style={{ marginTop: "0.4rem" }}>
+          <DescriptionField
+            value={meta.description || ""}
+            onChange={(v) => onChange({ description: v })}
+            canEdit={canEdit}
+          />
+        </div>
+      )}
+    </div>
   );
 }

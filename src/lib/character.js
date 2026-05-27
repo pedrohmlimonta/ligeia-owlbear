@@ -290,14 +290,15 @@ export function migrateCharacter(char) {
 
   const normalizeSpell = (g) => {
     const base = normalizeEffects(g);
-    // Metamagias migram de strings → { name, wordId }
+    // Metamagias migram de strings → { name, wordId, description }
     const metamagics = Array.isArray(g.metamagics)
       ? g.metamagics
           .map((m) => {
-            if (typeof m === "string") return { name: m, wordId: "" };
+            if (typeof m === "string") return { name: m, wordId: "", description: "" };
             return {
               name: typeof m.name === "string" ? m.name : "",
               wordId: typeof m.wordId === "string" ? m.wordId : "",
+              description: typeof m.description === "string" ? m.description : "",
             };
           })
           // Mantém metamagias com nome OU palavra (não filtra vazias que estejam só com word)

@@ -387,11 +387,14 @@ function renderGrimoire(c) {
                     }
                     const name = m.name || "";
                     const word = m.wordId ? wordName(m.wordId) : "";
-                    if (!name.trim() && !word) return "";
+                    if (!name.trim() && !word && !(m.description || "").trim()) return "";
                     const wordPart = word
                       ? ` <em class="meta-word">[${ESC(word)}]</em>`
                       : "";
-                    return `<span class="meta-tag">${ESC(name) || "—"}${wordPart}</span>`;
+                    const descPart = (m.description || "").trim()
+                      ? `<div class="meta-desc">${ESC(m.description).replace(/\n/g, "<br>")}</div>`
+                      : "";
+                    return `<div class="meta-block"><span class="meta-tag">${ESC(name) || "—"}${wordPart}</span>${descPart}</div>`;
                   })
                   .filter(Boolean)
                   .join(" ")}</div>`
@@ -714,6 +717,18 @@ export function characterToPrintableHtml(character) {
     color: var(--gold-soft);
     font-style: italic;
     font-size: 8.5pt;
+  }
+  .meta-block {
+    display: inline-block;
+    margin: 0.15em 0;
+    vertical-align: top;
+  }
+  .meta-desc {
+    margin: 0.15em 0 0.3em 0.4em;
+    padding-left: 0.5em;
+    border-left: 1.5px solid var(--line);
+    font-size: 9pt;
+    color: var(--ink-soft);
   }
   .word-pill {
     display: inline-block;
