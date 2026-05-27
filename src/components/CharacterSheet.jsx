@@ -48,6 +48,10 @@ import {
   CAREERS,
 } from "../data/character.js";
 import { ARCANE_WORDS } from "../data/magicWords.js";
+import { SKILLS_LIBRARY } from "../data/skillsLibrary.js";
+import { SPELLS_LIBRARY } from "../data/spellsLibrary.js";
+import { EQUIPMENT_LIBRARY } from "../data/equipmentLibrary.js";
+import { LibraryPicker } from "./LibraryPicker.jsx";
 import { DiceTray } from "./Die3D.jsx";
 
 // Context para propagar permissão de edição estrutural (somente GM).
@@ -1057,8 +1061,25 @@ function AttackBlock({ attack, attributes, onChange, onRoll, onRemove }) {
 
 function EquipmentPanel({ items, onChange }) {
   const list = Array.isArray(items) ? items : [];
-  const addItem = () => {
-    onChange([...list, { name: "", qty: 1, weight: 0, notes: "" }]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const addItem = (libItem) => {
+    if (libItem) {
+      // Pré-preenche a partir da biblioteca
+      onChange([
+        ...list,
+        {
+          name: libItem.name,
+          qty: 1,
+          weight: libItem.weight || 0,
+          notes: libItem.properties || "",
+          description: libItem.description || "",
+        },
+      ]);
+    } else {
+      onChange([...list, { name: "", qty: 1, weight: 0, notes: "", description: "" }]);
+    }
+    setPickerOpen(false);
   };
   const updateItem = (i, patch) => {
     const copy = [...list];
@@ -1076,9 +1097,18 @@ function EquipmentPanel({ items, onChange }) {
 
   return (
     <div className="panel">
+      {pickerOpen && (
+        <LibraryPicker
+          title="Adicionar Equipamento"
+          library={EQUIPMENT_LIBRARY}
+          kind="equipment"
+          onPick={addItem}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
       <div className="panel-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span>Equipamentos</span>
-        <button onClick={addItem} style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem" }}>
+        <button onClick={() => setPickerOpen(true)} style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem" }}>
           + Adicionar
         </button>
       </div>
@@ -1153,11 +1183,25 @@ function EquipmentPanel({ items, onChange }) {
 }
 
 function SkillsPanel({ skills, attributes, onChange, onRoll }) {
-  const addSkill = () => {
-    onChange([
-      ...skills,
-      { name: "", level: null, attribute: "mente" },
-    ]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const addSkill = (libSkill) => {
+    if (libSkill) {
+      onChange([
+        ...skills,
+        {
+          name: libSkill.name,
+          level: null,
+          attribute: "mente",
+          descBasic: libSkill.descBasic || "",
+          descAdvanced: libSkill.descAdvanced || "",
+          descSpecial: libSkill.descSpecial || "",
+        },
+      ]);
+    } else {
+      onChange([...skills, { name: "", level: null, attribute: "mente" }]);
+    }
+    setPickerOpen(false);
   };
 
   const updateSkill = (i, patch) => {
@@ -1178,9 +1222,18 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
 
   return (
     <div className="panel">
+      {pickerOpen && (
+        <LibraryPicker
+          title="Adicionar Habilidade"
+          library={SKILLS_LIBRARY}
+          kind="skill"
+          onPick={addSkill}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
       <div className="panel-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span>Habilidades</span>
-        <button onClick={addSkill} style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem" }}>
+        <button onClick={() => setPickerOpen(true)} style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem" }}>
           + Adicionar
         </button>
       </div>
@@ -1256,6 +1309,7 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
 
 function MagicSection({ character, onChange, onRoll }) {
   const known = new Set(character.magic.knownWords);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const toggleWord = (id) => {
     const next = new Set(known);
@@ -1264,6 +1318,39 @@ function MagicSection({ character, onChange, onRoll }) {
     onChange({
       magic: { ...character.magic, knownWords: Array.from(next) },
     });
+  };
+
+  const addSpell = (libSpell) => {
+    let newSpell;
+    if (libSpell) {
+      newSpell = {
+        base: libSpell.name,
+        wordId: libSpell.wordId || "",
+        casting: libSpell.casting || "",
+        target: libSpell.target || "",
+        area: libSpell.area || "",
+        range: libSpell.range || "",
+        duration: libSpell.duration || "",
+        description: libSpell.description || "",
+        peculiarities: libSpell.peculiarities || "",
+        metamagics: [],
+      };
+      // Se tiver "effect", concatena à descrição
+      if (libSpell.effect) {
+        newSpell.description = (newSpell.description
+          ? newSpell.description + "\n\nEfeito: "
+          : "Efeito: ") + libSpell.effect;
+      }
+    } else {
+      newSpell = { base: "", wordId: "", metamagics: [] };
+    }
+    onChange({
+      magic: {
+        ...character.magic,
+        grimoire: [...character.magic.grimoire, newSpell],
+      },
+    });
+    setPickerOpen(false);
   };
 
   const updateGrimoire = (i, patch) => {
@@ -1339,20 +1426,19 @@ function MagicSection({ character, onChange, onRoll }) {
 
       {/* Grimório */}
       <div className="panel">
+        {pickerOpen && (
+          <LibraryPicker
+            title="Adicionar Magia"
+            library={SPELLS_LIBRARY}
+            kind="spell"
+            onPick={addSpell}
+            onClose={() => setPickerOpen(false)}
+          />
+        )}
         <div className="panel-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>Grimório</span>
           <button
-            onClick={() =>
-              onChange({
-                magic: {
-                  ...character.magic,
-                  grimoire: [
-                    ...character.magic.grimoire,
-                    { base: "", wordId: "", metamagics: [] },
-                  ],
-                },
-              })
-            }
+            onClick={() => setPickerOpen(true)}
             style={{ padding: "0.25rem 0.5rem", fontSize: "0.7rem" }}
           >
             + Magia Base
