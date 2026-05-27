@@ -311,6 +311,7 @@ export function migrateCharacter(char) {
       area: typeof g.area === "string" ? g.area : "",
       range: typeof g.range === "string" ? g.range : "",
       duration: typeof g.duration === "string" ? g.duration : "",
+      peculiarities: typeof g.peculiarities === "string" ? g.peculiarities : "",
       metamagics,
     };
   };

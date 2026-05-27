@@ -1700,6 +1700,16 @@ function ItemEffectsBlock({ item, onChange, kind = "skill" }) {
             />
           )}
 
+          {/* Peculiaridades — exclusivo de magias */}
+          {kind === "spell" && (
+            <DescriptionField
+              value={item.peculiarities || ""}
+              onChange={(v) => onChange({ peculiarities: v })}
+              canEdit={canEdit}
+              label="Peculiaridades"
+            />
+          )}
+
           {/* Custos */}
           {showCostsEffects && (
             <CostsEditor

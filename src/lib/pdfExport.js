@@ -403,6 +403,7 @@ function renderGrimoire(c) {
           ${renderSlots(g, "spell")}
           ${renderCosts(g.costs)}
           ${renderDescriptionBlock(g.description, "Descrição")}
+          ${renderDescriptionBlock(g.peculiarities, "Peculiaridades")}
           ${renderEffects(g.effects)}
         </li>
       `,
