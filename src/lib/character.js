@@ -280,6 +280,7 @@ export function migrateCharacter(char) {
       descAdvanced: typeof s.descAdvanced === "string" ? s.descAdvanced : "",
       descSpecial: typeof s.descSpecial === "string" ? s.descSpecial : "",
       // Slots de ficha técnica
+      activation: typeof s.activation === "string" ? s.activation : "",
       target: typeof s.target === "string" ? s.target : "",
       area: typeof s.area === "string" ? s.area : "",
       range: typeof s.range === "string" ? s.range : "",

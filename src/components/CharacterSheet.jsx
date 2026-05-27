@@ -1752,6 +1752,14 @@ function SlotsEditor({ item, kind, onChange, canEdit }) {
           canEdit={canEdit}
         />
       )}
+      {kind === "skill" && (
+        <SlotInput
+          label="Ativação"
+          value={item.activation || ""}
+          onChange={(v) => onChange({ activation: v })}
+          canEdit={canEdit}
+        />
+      )}
       <SlotInput
         label="Alvo"
         value={item.target || ""}

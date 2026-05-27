@@ -119,6 +119,7 @@ function renderCosts(costs) {
 function renderSlots(item, kind) {
   const slots = [];
   if (kind === "spell" && item.casting) slots.push(["Conjurar", item.casting]);
+  if (kind === "skill" && item.activation) slots.push(["Ativação", item.activation]);
   if (item.target) slots.push(["Alvo", item.target]);
   if (item.area) slots.push(["Área", item.area]);
   if (item.range) slots.push(["Alcance", item.range]);
