@@ -2,7 +2,6 @@
   "name": "Ligeia RPG",
   "version": "1.0.0",
   "manifest_version": 1,
-  "background": "https://pedrohmlimonta.github.io/ligeia-owlbear/background.html",
   "action": {
     "title": "Ligeia RPG",
     "icon": "https://pedrohmlimonta.github.io/ligeia-owlbear/icon.svg",
