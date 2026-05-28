@@ -290,7 +290,7 @@ export async function openCharacterSheet(characterId) {
       id: "ligeia.sheet",
       url,
       width: 1000,
-      height: 900,
+      height: 500,
     });
   } catch (e) {
     console.warn(e);
