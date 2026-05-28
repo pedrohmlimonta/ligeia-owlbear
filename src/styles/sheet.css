@@ -2,12 +2,9 @@
    Ficha de Personagem — estilos
    Layout inspirado na ficha oficial (Ficha_de_Personagem.pdf)
    ===================================================== */
-.MuiPaper-root.MuiPaper-elevation.MuiPaper-rounded.MuiPaper-elevation24.MuiDialog-paper.MuiDialog-paperScrollPaper.MuiDialog-paperWidthFalse.css-8lg51i, .MuiBox-root.css-k008qs, iframe.extension-frame{
-  height: 100% !important;
 
-}
 .sheet {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 1rem 1.25rem 2rem;
   position: relative;
@@ -1469,4 +1466,193 @@
   font-style: italic;
   font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+/* =========================================================================
+   Responsividade — Tablet (<= 900px) e Mobile (<= 600px)
+   ========================================================================= */
+
+/* Tablet: força layout vertical em mais elementos */
+@media (max-width: 900px) {
+  .sheet {
+    padding: 0.5rem !important;
+  }
+
+  /* Cabeçalho: empilha retrato + identidade + toolbar */
+  .sheet-header {
+    flex-wrap: wrap;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .sheet-toolbar {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  /* Linha de identidade: 2 colunas em tablet */
+  .identity-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .identity-row {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Atributos: bloco mais compacto */
+  .attribute-block {
+    grid-template-columns: 86px 1fr;
+    gap: 0.4rem;
+    padding: 0.4rem;
+  }
+
+  .attribute-circle {
+    width: 80px !important;
+    height: 80px !important;
+  }
+}
+
+/* Mobile: força quase tudo a uma coluna */
+@media (max-width: 600px) {
+  .sheet {
+    padding: 0.35rem !important;
+    font-size: 0.85rem;
+  }
+
+  /* Cabeçalho compacto */
+  .sheet-header {
+    padding: 0.4rem 0.5rem;
+    gap: 0.4rem;
+  }
+
+  .portrait-wrap {
+    width: 56px;
+    height: 56px;
+  }
+
+  .brand-block .brand-mark {
+    font-size: 1rem !important;
+  }
+
+  .sheet-header input {
+    font-size: 0.9rem;
+  }
+
+  /* Linha de identidade em uma coluna */
+  .identity-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .identity-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.35rem;
+  }
+
+  /* Atributos */
+  .attribute-block {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+    text-align: center;
+  }
+
+  .attribute-circle {
+    width: 72px !important;
+    height: 72px !important;
+    margin: 0 auto;
+  }
+
+  /* Tabelas e grids genéricos */
+  .derived-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Atributos secundários (pílulas) */
+  .sec-pills,
+  .secondaries-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Recursos PV/PM/PH */
+  .resource-grid,
+  .resources {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Toolbar de cima: botões menores */
+  .sheet-toolbar button,
+  .sheet-toolbar .import-btn {
+    font-size: 0.7rem !important;
+    padding: 0.3rem 0.5rem !important;
+  }
+
+  /* Slots de habilidade/magia em uma coluna */
+  .slots-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Custos: redistribui */
+  .cost-row {
+    grid-template-columns: 1fr 56px 1fr 24px !important;
+    gap: 0.2rem;
+  }
+
+  /* Spell-row e metamagia: empilha o select de palavra abaixo */
+  .spell-row {
+    flex-wrap: wrap;
+  }
+
+  .word-select {
+    width: 100% !important;
+  }
+
+  /* Trait-head */
+  .trait-head {
+    flex-wrap: wrap;
+  }
+
+  .trait-source {
+    width: 100% !important;
+  }
+
+  /* Botão de gestão (Controles do GM) */
+  .gm-controls {
+    padding: 0.4rem;
+  }
+
+  /* Modal LibraryPicker em mobile fica fullscreen */
+  .library-picker-card {
+    max-height: 95vh;
+    width: 95vw;
+  }
+
+  .library-list {
+    min-height: 180px;
+    font-size: 0.78rem;
+  }
+
+  /* Painel: padding menor */
+  .panel {
+    padding: 0.5rem !important;
+  }
+
+  /* Tipografia */
+  h1, h2, h3, .panel-title {
+    font-size: 0.85rem !important;
+  }
+
+  .char-name {
+    font-size: 1.3rem !important;
+  }
+}
+
+/* Mobile MUITO pequeno (~360px): ajustes finais */
+@media (max-width: 380px) {
+  .identity-row {
+    grid-template-columns: 1fr;
+  }
+
+  .sec-pills,
+  .secondaries-grid {
+    grid-template-columns: 1fr !important;
+  }
 }

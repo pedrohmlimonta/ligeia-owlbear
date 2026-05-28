@@ -281,19 +281,33 @@ export async function openCharacterSheet(characterId) {
     window.location.href
   ).toString();
   if (!isInsideOBR()) {
-    window.open(url, "_blank", "width=1000,height=900");
+    window.open(url, "_blank", "width=1000,height=500");
     return;
   }
   await whenOBRReady();
   try {
+    // 95% da largura, 85% da altura — usa bem a tela em desktop,
+    // e em mobile fica próximo a fullscreen.
+    const w = Math.min(1000, Math.round(window.innerWidth * 0.95));
+    const h = Math.min(500, Math.round(window.innerHeight * 0.85));
     await OBR.modal.open({
       id: "ligeia.sheet",
       url,
-      width: 1000,
-      height: 500,
+      width: w,
+      height: h,
     });
   } catch (e) {
-    console.warn(e);
+    // Fallback: dimensões fixas razoáveis
+    try {
+      await OBR.modal.open({
+        id: "ligeia.sheet",
+        url,
+        width: 1000,
+        height: 500,
+      });
+    } catch (e2) {
+      console.warn(e2);
+    }
   }
 }
 
