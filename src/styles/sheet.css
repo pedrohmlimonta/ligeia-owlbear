@@ -2,7 +2,10 @@
    Ficha de Personagem — estilos
    Layout inspirado na ficha oficial (Ficha_de_Personagem.pdf)
    ===================================================== */
+.MuiPaper-root.MuiPaper-elevation.MuiPaper-rounded.MuiPaper-elevation24.MuiDialog-paper.MuiDialog-paperScrollPaper.MuiDialog-paperWidthFalse.css-8lg51i, .MuiBox-root.css-k008qs, iframe.extension-frame{
+  height: 100% !important;
 
+}
 .sheet {
   max-width: 1200px;
   margin: 0 auto;
