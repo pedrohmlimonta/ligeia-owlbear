@@ -60,17 +60,19 @@
 
 html,
 body {
-  height: 100%;
+  min-height: 100%;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  /* Evita scrollbar horizontal — o conteúdo é responsivo */
+  overflow-x: hidden;
 }
 
 #root {
-  height: 100%;
+  min-height: 100%;
 }
 
 /* Textura de pergaminho sutil no fundo */
