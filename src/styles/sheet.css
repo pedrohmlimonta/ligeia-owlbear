@@ -87,9 +87,10 @@
 }
 
 .attribute-circle {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
+  width: auto;
+  height: auto;
+  padding: 5px;
+  border-radius: 10px;
   background: radial-gradient(circle at 35% 30%, var(--bg-soft), var(--bg-deep) 75%);
   border: 2px solid var(--gold);
   display: flex;
@@ -128,8 +129,8 @@
 }
 
 .attribute-circle .attr-dice {
-  position: absolute;
-  bottom: -10px;
+  position: relative;
+  bottom: 0px !important;
   left: 50%;
   transform: translateX(-50%);
   background: var(--bg-deep);
@@ -538,8 +539,8 @@
     grid-template-columns: 90px 1fr;
   }
   .attribute-circle {
-    width: 80px;
-    height: 80px;
+    width: auto;
+    height: auto;
   }
 }
 
@@ -1507,8 +1508,8 @@
   }
 
   .attribute-circle {
-    width: 80px !important;
-    height: 80px !important;
+    width: auto !important;
+    height: auto !important;
   }
 }
 
@@ -1560,8 +1561,8 @@
   }
 
   .attribute-circle {
-    width: 110px !important;
-    height: 110px !important;
+    width: auto !important;
+    height: auto !important;
     margin: 0 auto;
   }
 
