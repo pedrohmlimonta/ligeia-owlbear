@@ -286,28 +286,19 @@ export async function openCharacterSheet(characterId) {
   }
   await whenOBRReady();
   try {
-    // 95% da largura, 85% da altura — usa bem a tela em desktop,
-    // e em mobile fica próximo a fullscreen.
-    const w = Math.min(1000, Math.round(window.innerWidth * 0.95));
-    const h = Math.min(500, Math.round(window.innerHeight * 0.85));
+    // Tamanhos fixos. `window.innerWidth` aqui é o iframe da extensão
+    // (estreito), então não serve para dimensionar a ficha — o OBR
+    // posiciona o modal sobre toda a tela, e ele se adapta ao espaço
+    // disponível automaticamente quando a viewport é menor que esses
+    // valores.
     await OBR.modal.open({
       id: "ligeia.sheet",
       url,
-      width: w,
-      height: h,
+      width: 1000,
+      height: 500,
     });
   } catch (e) {
-    // Fallback: dimensões fixas razoáveis
-    try {
-      await OBR.modal.open({
-        id: "ligeia.sheet",
-        url,
-        width: 1000,
-        height: 500,
-      });
-    } catch (e2) {
-      console.warn(e2);
-    }
+    console.warn(e);
   }
 }
 
