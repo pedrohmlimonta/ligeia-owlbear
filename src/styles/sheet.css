@@ -1548,17 +1548,42 @@
     gap: 0.35rem;
   }
 
-  /* Atributos */
+  /* Atributos: círculo grande em cima, badge "Dados" sobreposto NA BORDA
+     INFERIOR (com margem ABAIXO do círculo para evitar sobreposição
+     do número do atributo dentro do círculo).
+     Mantém a UX visual mas separa o que está clicável. */
   .attribute-block {
     grid-template-columns: 1fr;
-    gap: 0.3rem;
+    gap: 1rem;
     text-align: center;
+    padding: 1rem 0.5rem 1.2rem;
   }
 
   .attribute-circle {
-    width: 72px !important;
-    height: 72px !important;
+    width: 110px !important;
+    height: 110px !important;
     margin: 0 auto;
+  }
+
+  /* Aumenta um pouco o nome e o número para ficarem nítidos no mobile,
+     e dá espaço entre eles para o badge "Dados" não sobrepor o valor. */
+  .attribute-circle .attr-name {
+    font-size: 0.7rem !important;
+    margin-top: 8px;
+  }
+
+  .attribute-circle .attr-value,
+  .attribute-circle input[type="number"] {
+    font-size: 1.9rem !important;
+  }
+
+  /* Badge "Dados" fica claramente FORA do círculo, abaixo, com fundo
+     contrastante para não sobrepor o número de atributo. */
+  .attribute-circle .attr-dice {
+    bottom: -14px !important;
+    padding: 2px 10px !important;
+    background: var(--bg-deep) !important;
+    z-index: 2;
   }
 
   /* Tabelas e grids genéricos */
