@@ -27,7 +27,7 @@ export function createBlankCharacter(name = "Novo Personagem") {
 
     // Identidade
     name,
-    image: "",          // data URL da imagem do personagem (retrato)
+    // image: "",          // data URL da imagem do personagem (retrato)
     concept: "",
     race: "",
     heritage: "—",

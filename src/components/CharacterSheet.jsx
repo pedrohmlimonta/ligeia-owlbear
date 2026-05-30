@@ -356,11 +356,11 @@ export function CharacterSheet({ characterId }) {
 
       {/* Cabeçalho com logo */}
       <header className="sheet-header">
-        <PortraitInput
+        {/* <PortraitInput
           value={character.image}
           onChange={(v) => update({ image: v })}
           canEdit={canEdit}
-        />
+        /> */}
         <div className="brand-block">
           <div className="brand-mark">LIGEIA</div>
           <div className="brand-sub">RPG</div>
@@ -2457,74 +2457,74 @@ function ImportButton({ onImport }) {
 /* =========================================================================
    Retrato do personagem (imagem em data URL)
    ========================================================================= */
-function PortraitInput({ value, onChange, canEdit }) {
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    // Aceita até ~5MB (acima disso o data URL pesa demais na room metadata)
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Imagem muito grande (máx 5MB). Use uma versão menor.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => onChange(String(reader.result || ""));
-    reader.onerror = () => alert("Falha ao ler a imagem.");
-    reader.readAsDataURL(file);
-  };
+// function PortraitInput({ value, onChange, canEdit }) {
+//   const handleFile = async (e) => {
+//     const file = e.target.files?.[0];
+//     e.target.value = "";
+//     if (!file) return;
+//     // Aceita até ~5MB (acima disso o data URL pesa demais na room metadata)
+//     if (file.size > 5 * 1024 * 1024) {
+//       alert("Imagem muito grande (máx 5MB). Use uma versão menor.");
+//       return;
+//     }
+//     const reader = new FileReader();
+//     reader.onload = () => onChange(String(reader.result || ""));
+//     reader.onerror = () => alert("Falha ao ler a imagem.");
+//     reader.readAsDataURL(file);
+//   };
 
-  const handleClear = () => {
-    if (confirm("Remover a imagem do personagem?")) onChange("");
-  };
+//   const handleClear = () => {
+//     if (confirm("Remover a imagem do personagem?")) onChange("");
+//   };
 
-  if (value) {
-    return (
-      <div className="portrait-wrap has-image">
-        <img src={value} alt="Retrato" className="portrait-img" />
-        {canEdit && (
-          <div className="portrait-controls">
-            <label className="portrait-btn">
-              ✎
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFile}
-                style={{ display: "none" }}
-              />
-            </label>
-            <button
-              className="portrait-btn danger"
-              onClick={handleClear}
-              title="Remover imagem"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
+//   if (value) {
+//     return (
+//       <div className="portrait-wrap has-image">
+//         <img src={value} alt="Retrato" className="portrait-img" />
+//         {canEdit && (
+//           <div className="portrait-controls">
+//             <label className="portrait-btn">
+//               ✎
+//               <input
+//                 type="file"
+//                 accept="image/*"
+//                 onChange={handleFile}
+//                 style={{ display: "none" }}
+//               />
+//             </label>
+//             <button
+//               className="portrait-btn danger"
+//               onClick={handleClear}
+//               title="Remover imagem"
+//             >
+//               ✕
+//             </button>
+//           </div>
+//         )}
+//       </div>
+//     );
+//   }
 
-  if (!canEdit) {
-    return (
-      <div className="portrait-wrap empty">
-        <span className="portrait-placeholder">sem retrato</span>
-      </div>
-    );
-  }
+//   if (!canEdit) {
+//     return (
+//       <div className="portrait-wrap empty">
+//         <span className="portrait-placeholder">sem retrato</span>
+//       </div>
+//     );
+//   }
 
-  return (
-    <label className="portrait-wrap empty editable" title="Adicionar imagem">
-      <span className="portrait-placeholder">+ retrato</span>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleFile}
-        style={{ display: "none" }}
-      />
-    </label>
-  );
-}
+//   return (
+//     <label className="portrait-wrap empty editable" title="Adicionar imagem">
+//       <span className="portrait-placeholder">+ retrato</span>
+//       <input
+//         type="file"
+//         accept="image/*"
+//         onChange={handleFile}
+//         style={{ display: "none" }}
+//       />
+//     </label>
+//   );
+// }
 
 /* =========================================================================
    Valor derivado com bônus opcional do Narrador (ex: Deslocamento)
