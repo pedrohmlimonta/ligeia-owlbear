@@ -7,9 +7,16 @@
 // ===========================================================================
 
 import OBR, { buildShape } from "@owlbear-rodeo/sdk";
+import { slimCharacter } from "./character.js";
 
 const CHANNEL_ROLLS = "ligeia.rolls";
 const STORAGE_CHARACTERS = "ligeia.characters";
+// Prefixo para salvar cada personagem em sua PRÓPRIA chave de metadata.
+// O Owlbear limita cada item de metadata a 16 kB; com uma chave por
+// personagem, cada um tem seu próprio orçamento em vez de compartilhar
+// um único objeto que estoura rápido.
+const CHAR_KEY_PREFIX = "ligeia.char.";
+const charKey = (id) => `${CHAR_KEY_PREFIX}${id}`;
 
 let _ready = null;
 
@@ -186,8 +193,9 @@ export function onAnyRoll(callback) {
 }
 
 /**
- * Salva um personagem na sala (metadata da room). Compartilhado entre
- * narrador e jogadores que tenham permissão de leitura.
+ * Salva um personagem na sala (metadata da room). Cada personagem fica
+ * em sua própria chave (ligeia.char.<id>) para respeitar o limite de
+ * 16 kB por item de metadata do Owlbear.
  */
 export async function saveCharacterToRoom(character) {
   if (!isInsideOBR()) {
@@ -199,30 +207,113 @@ export async function saveCharacterToRoom(character) {
   }
   await whenOBRReady();
   try {
-    const current = (await OBR.room.getMetadata())[STORAGE_CHARACTERS] || {};
-    current[character.id] = character;
-    await OBR.room.setMetadata({ [STORAGE_CHARACTERS]: current });
+    // Enxuga o personagem (remove campos vazios) para caber no limite.
+    const slim = slimCharacter(character);
+    const payload = JSON.stringify(slim);
+    const bytes = new Blob([payload]).size;
+    if (bytes > 15500) {
+      throw new Error(
+        `Personagem "${character.name || character.id}" tem ${(bytes / 1024).toFixed(1)} kB, ` +
+        `acima do limite de 16 kB do Owlbear. Remova descrições longas ou itens.`,
+      );
+    }
+    await OBR.room.setMetadata({ [charKey(character.id)]: slim });
   } catch (e) {
     console.warn("Falha ao salvar na sala, usando localStorage:", e);
     const all = loadCharactersFromLocal();
     all[character.id] = character;
     localStorage.setItem(STORAGE_CHARACTERS, JSON.stringify(all));
+    // Re-lança erros de tamanho para a UI poder avisar o usuário.
+    if (e instanceof Error && e.message.includes("limite")) throw e;
   }
 }
 
 /**
- * Lê todos os personagens conhecidos (room metadata + fallback local).
+ * Lê todos os personagens conhecidos. Junta:
+ *  - chaves individuais ligeia.char.<id> (novo formato)
+ *  - o objeto legado ligeia.characters (formato antigo, migrado em leitura)
+ *  - fallback local
  */
 export async function loadCharacters() {
   if (!isInsideOBR()) return loadCharactersFromLocal();
   await whenOBRReady();
   try {
     const data = await OBR.room.getMetadata();
-    return data[STORAGE_CHARACTERS] || {};
+    const out = {};
+
+    // Formato legado: tudo num objeto só.
+    const legacy = data[STORAGE_CHARACTERS];
+    if (legacy && typeof legacy === "object") {
+      for (const [id, c] of Object.entries(legacy)) {
+        out[id] = c;
+      }
+    }
+
+    // Formato novo: uma chave por personagem (sobrescreve o legado).
+    for (const [key, value] of Object.entries(data)) {
+      if (key.startsWith(CHAR_KEY_PREFIX) && value && typeof value === "object") {
+        out[value.id || key.slice(CHAR_KEY_PREFIX.length)] = value;
+      }
+    }
+
+    return out;
   } catch (e) {
     console.warn("Falha ao ler da sala, usando localStorage:", e);
     return loadCharactersFromLocal();
   }
+}
+
+/**
+ * Migra personagens do formato legado (todos numa chave ligeia.characters)
+ * para chaves individuais (ligeia.char.<id>), e esvazia a chave legada.
+ * Faz isso em lotes, respeitando o limite de 16 kB por item.
+ *
+ * Retorna { migrated, failed } com os ids processados.
+ */
+export async function migrateLegacyCharacters() {
+  if (!isInsideOBR()) return { migrated: [], failed: [] };
+  await whenOBRReady();
+  const migrated = [];
+  const failed = [];
+  try {
+    const data = await OBR.room.getMetadata();
+    const legacy = data[STORAGE_CHARACTERS];
+    if (!legacy || typeof legacy !== "object" || Object.keys(legacy).length === 0) {
+      return { migrated, failed };
+    }
+
+    // Move cada personagem para sua própria chave.
+    for (const [id, char] of Object.entries(legacy)) {
+      try {
+        const slim = slimCharacter(char);
+        const bytes = new Blob([JSON.stringify(slim)]).size;
+        if (bytes > 15500) {
+          // Grande demais até sozinho — deixa no legado e marca falha.
+          failed.push(id);
+          continue;
+        }
+        await OBR.room.setMetadata({ [charKey(id)]: slim });
+        migrated.push(id);
+      } catch (e) {
+        console.warn(`Falha ao migrar personagem ${id}:`, e);
+        failed.push(id);
+      }
+    }
+
+    // Esvazia a chave legada APENAS dos que migraram com sucesso.
+    if (failed.length === 0) {
+      // Tudo migrou — remove a chave legada inteira.
+      await OBR.room.setMetadata({ [STORAGE_CHARACTERS]: undefined });
+    } else {
+      // Mantém só os que falharam na chave legada.
+      const remaining = {};
+      for (const id of failed) remaining[id] = legacy[id];
+      await OBR.room.setMetadata({ [STORAGE_CHARACTERS]: remaining });
+    }
+  } catch (e) {
+    console.warn("Falha na migração de personagens:", e);
+  }
+  return { migrated, failed };
 }
 
 export async function deleteCharacter(id) {
@@ -234,9 +325,16 @@ export async function deleteCharacter(id) {
   }
   await whenOBRReady();
   try {
-    const current = (await OBR.room.getMetadata())[STORAGE_CHARACTERS] || {};
-    delete current[id];
-    await OBR.room.setMetadata({ [STORAGE_CHARACTERS]: current });
+    // Remove a chave individual.
+    await OBR.room.setMetadata({ [charKey(id)]: undefined });
+    // Também remove do objeto legado, se existir lá.
+    const data = await OBR.room.getMetadata();
+    const legacy = data[STORAGE_CHARACTERS];
+    if (legacy && typeof legacy === "object" && legacy[id]) {
+      const copy = { ...legacy };
+      delete copy[id];
+      await OBR.room.setMetadata({ [STORAGE_CHARACTERS]: copy });
+    }
   } catch (e) {
     console.warn(e);
   }
@@ -263,7 +361,19 @@ export function onCharactersChanged(callback) {
   let unsub = () => {};
   whenOBRReady().then(() => {
     unsub = OBR.room.onMetadataChange((meta) => {
-      callback(meta[STORAGE_CHARACTERS] || {});
+      const out = {};
+      // Legado
+      const legacy = meta[STORAGE_CHARACTERS];
+      if (legacy && typeof legacy === "object") {
+        for (const [id, c] of Object.entries(legacy)) out[id] = c;
+      }
+      // Chaves individuais
+      for (const [key, value] of Object.entries(meta)) {
+        if (key.startsWith(CHAR_KEY_PREFIX) && value && typeof value === "object") {
+          out[value.id || key.slice(CHAR_KEY_PREFIX.length)] = value;
+        }
+      }
+      callback(out);
     });
   });
   return () => unsub();

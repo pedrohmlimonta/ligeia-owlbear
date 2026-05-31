@@ -17,6 +17,7 @@ import {
   onPartyChange,
   linkCharacterToItem,
   onSceneItemsChange,
+  migrateLegacyCharacters,
 } from "../lib/obr.js";
 import { createBlankCharacter, migrateCharacter } from "../lib/character.js";
 import { formatRoll, formatRollForViewer } from "../lib/dice.js";
@@ -35,7 +36,11 @@ export function Popover() {
   charactersRef.current = characters;
 
   useEffect(() => {
-    loadCharacters().then(setCharacters);
+    // Migra personagens do formato antigo (chave única) para chaves
+    // individuais, resolvendo o limite de 16 kB, e então carrega.
+    migrateLegacyCharacters()
+      .then(() => loadCharacters())
+      .then(setCharacters);
     const unsub = onCharactersChanged(setCharacters);
     return unsub;
   }, []);
@@ -159,8 +164,12 @@ export function Popover() {
     if (!name) return;
     const c = createBlankCharacter(name);
     c.npc = npc;
-    await saveCharacterToRoom(c);
-    openCharacterSheet(c.id);
+    try {
+      await saveCharacterToRoom(c);
+      openCharacterSheet(c.id);
+    } catch (e) {
+      alert(e.message || "Não foi possível criar o personagem.");
+    }
   };
 
   const handleImportNewCharacter = async (imported) => {
@@ -171,8 +180,12 @@ export function Popover() {
       playerId: null,
       tokenIds: [],
     };
-    await saveCharacterToRoom(fresh);
-    openCharacterSheet(fresh.id);
+    try {
+      await saveCharacterToRoom(fresh);
+      openCharacterSheet(fresh.id);
+    } catch (e) {
+      alert(e.message || "Não foi possível importar o personagem.");
+    }
   };
 
   const handleDelete = async (id, name) => {

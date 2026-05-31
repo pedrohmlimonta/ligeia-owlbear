@@ -452,3 +452,63 @@ export function clampResources(char, resources) {
 
   return c;
 }
+
+/**
+ * Remove campos vazios/redundantes de um personagem para economizar
+ * espaço na metadata da room (limite de 16 kB por item no Owlbear).
+ * Não altera o objeto original.
+ *
+ * Estratégias:
+ *  - remove strings vazias, arrays vazios, objetos vazios
+ *  - remove campos de descrição em branco em skills/spells/equip/traits
+ *  - remove efeitos/custos desabilitados e vazios
+ */
+export function slimCharacter(char) {
+  if (!char || typeof char !== "object") return char;
+
+  const isEmpty = (v) => {
+    if (v === null || v === undefined) return true;
+    if (typeof v === "string") return v.trim() === "";
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === "object") return Object.keys(v).length === 0;
+    return false;
+  };
+
+  // Remove chaves vazias recursivamente, MAS preserva números (inclusive 0)
+  // e booleanos (inclusive false), que são significativos.
+  const clean = (obj) => {
+    if (Array.isArray(obj)) {
+      return obj.map(clean);
+    }
+    if (obj && typeof obj === "object") {
+      const out = {};
+      for (const [k, v] of Object.entries(obj)) {
+        if (typeof v === "number" || typeof v === "boolean") {
+          out[k] = v;
+          continue;
+        }
+        const cleaned = clean(v);
+        if (!isEmpty(cleaned)) {
+          out[k] = cleaned;
+        }
+      }
+      return out;
+    }
+    return obj;
+  };
+
+  return clean(char);
+}
+
+/**
+ * Calcula o tamanho aproximado (em bytes) que o personagem ocupa quando
+ * serializado em JSON. Útil para avisar o usuário antes de estourar o
+ * limite do Owlbear.
+ */
+export function characterSizeBytes(char) {
+  try {
+    return new Blob([JSON.stringify(char)]).size;
+  } catch {
+    return JSON.stringify(char).length;
+  }
+}

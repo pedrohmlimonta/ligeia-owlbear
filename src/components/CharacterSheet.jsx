@@ -68,6 +68,7 @@ export function CharacterSheet({ characterId }) {
   const [tokenName, setTokenName] = useState(null);
   const [myId, setMyId] = useState(null);
   const [party, setParty] = useState([]);
+  const [sizeError, setSizeError] = useState(null);
 
   useEffect(() => {
     return onRoleChange(setRole);
@@ -139,7 +140,14 @@ export function CharacterSheet({ characterId }) {
         setCharacter(clamped);
         return; // novo render reagenda esse effect, evita salvar valor não-clampado
       }
-      saveCharacterToRoom(clamped);
+      saveCharacterToRoom(clamped).then(
+        () => setSizeError(null),
+        (err) => {
+          if (err && err.message && err.message.includes("limite")) {
+            setSizeError(err.message);
+          }
+        },
+      );
       // Atualiza barras em TODOS os tokens vinculados, se houver
       const ids = clamped.tokenIds || [];
       if (ids.length > 0) {
@@ -281,6 +289,19 @@ export function CharacterSheet({ characterId }) {
   return (
     <EditPermContext.Provider value={canEdit}>
     <div className={"sheet " + (canEdit ? "" : "sheet-readonly")}>
+      {/* Banner de erro de tamanho (limite do Owlbear) */}
+      {sizeError && (
+        <div className="size-error-banner">
+          ⚠️ {sizeError}
+          <button
+            className="dismiss"
+            onClick={() => setSizeError(null)}
+            title="Fechar"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {/* Toast de rolagem */}
       {rollToast && (
         <div

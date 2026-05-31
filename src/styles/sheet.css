@@ -1682,3 +1682,28 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Banner de erro de tamanho (limite de metadata do Owlbear) */
+.size-error-banner {
+  background: linear-gradient(135deg, #5a1a1a, #3a0f0f);
+  border: 1px solid #c0392b;
+  color: #f0c0bc;
+  border-radius: 4px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 8px rgba(192, 57, 43, 0.3);
+}
+
+.size-error-banner .dismiss {
+  margin-left: auto;
+  background: transparent !important;
+  border: none !important;
+  color: #f0c0bc !important;
+  font-size: 0.9rem !important;
+  padding: 0 0.3rem !important;
+  cursor: pointer;
+}
