@@ -107,7 +107,23 @@ export function createBlankCharacter(name = "Novo Personagem") {
  */
 export function deriveSecondary(char, activeEffects = []) {
   const a = char.attributes;
-  const s = char.secondary;
+  // Garante que `secondary` e todos os sub-objetos existam, para não
+  // quebrar se o personagem foi salvo com estrutura incompleta.
+  const sDef = {
+    bloqueio: { override: null },
+    carga: { override: null },
+    esquiva: { override: null },
+    deslocamento: { override: null, raceBonus: 0, bonus: 0 },
+    sonoFomeSed: { override: null },
+    conjuracao: { override: null },
+    iniciativa: { override: null },
+    percepcaoPassiva: { override: null },
+  };
+  const sRaw = char.secondary && typeof char.secondary === "object" ? char.secondary : {};
+  const s = {};
+  for (const [k, def] of Object.entries(sDef)) {
+    s[k] = { ...def, ...(sRaw[k] && typeof sRaw[k] === "object" ? sRaw[k] : {}) };
+  }
   const f = a.forca.value;
   const ag = a.agilidade.value;
   const v = a.vigor.value;
@@ -220,16 +236,31 @@ export function migrateCharacter(char) {
   if (c.hp && typeof c.hp.bonus !== "number") c.hp = { ...c.hp, bonus: 0 };
   if (c.hp && typeof c.hp.temp !== "number") c.hp = { ...c.hp, temp: 0 };
   if (c.mp && typeof c.mp.bonus !== "number") c.mp = { ...c.mp, bonus: 0 };
-  if (
-    c.secondary &&
-    c.secondary.deslocamento &&
-    typeof c.secondary.deslocamento.bonus !== "number"
-  ) {
-    c.secondary = {
-      ...c.secondary,
-      deslocamento: { ...c.secondary.deslocamento, bonus: 0 },
-    };
+
+  // Reconstrói a estrutura `secondary` defensivamente. Versões anteriores
+  // podem ter removido objetos como `{ override: null }` ao enxugar o
+  // personagem, o que quebra os cálculos derivados. Aqui garantimos que
+  // todos os sub-objetos existam, preservando overrides já definidos.
+  const secondaryTemplate = {
+    bloqueio: { override: null },
+    carga: { override: null },
+    esquiva: { override: null },
+    deslocamento: { override: null, raceBonus: 0, bonus: 0 },
+    sonoFomeSed: { override: null },
+    conjuracao: { override: null },
+    iniciativa: { override: null },
+    percepcaoPassiva: { override: null },
+  };
+  const prevSec = c.secondary && typeof c.secondary === "object" ? c.secondary : {};
+  const newSec = {};
+  for (const [key, def] of Object.entries(secondaryTemplate)) {
+    const prev = prevSec[key] && typeof prevSec[key] === "object" ? prevSec[key] : {};
+    newSec[key] = { ...def, ...prev };
   }
+  // Garante bonus numérico no deslocamento
+  if (typeof newSec.deslocamento.bonus !== "number") newSec.deslocamento.bonus = 0;
+  if (typeof newSec.deslocamento.raceBonus !== "number") newSec.deslocamento.raceBonus = 0;
+  c.secondary = newSec;
 
   // tokenId (string única, antigo) → tokenIds (array)
   if (!Array.isArray(c.tokenIds)) {
@@ -454,50 +485,81 @@ export function clampResources(char, resources) {
 }
 
 /**
- * Remove campos vazios/redundantes de um personagem para economizar
- * espaço na metadata da room (limite de 16 kB por item no Owlbear).
- * Não altera o objeto original.
+ * Remove SOMENTE campos de texto vazios dentro das listas de itens
+ * (skills, spells, equipment, traits) para economizar espaço na metadata
+ * da room (limite de 16 kB por item no Owlbear).
  *
- * Estratégias:
- *  - remove strings vazias, arrays vazios, objetos vazios
- *  - remove campos de descrição em branco em skills/spells/equip/traits
- *  - remove efeitos/custos desabilitados e vazios
+ * IMPORTANTE: é conservador de propósito. NÃO mexe na estrutura central
+ * (attributes, secondary, resources, etc.), pois objetos como
+ * `secondary.bloqueio = { override: null }` são estruturais e removê-los
+ * quebraria os cálculos derivados. Só remove strings vazias e arrays
+ * vazios em campos de descrição conhecidos.
  */
 export function slimCharacter(char) {
   if (!char || typeof char !== "object") return char;
 
-  const isEmpty = (v) => {
-    if (v === null || v === undefined) return true;
-    if (typeof v === "string") return v.trim() === "";
-    if (Array.isArray(v)) return v.length === 0;
-    if (typeof v === "object") return Object.keys(v).length === 0;
-    return false;
-  };
+  const c = { ...char };
 
-  // Remove chaves vazias recursivamente, MAS preserva números (inclusive 0)
-  // e booleanos (inclusive false), que são significativos.
-  const clean = (obj) => {
-    if (Array.isArray(obj)) {
-      return obj.map(clean);
-    }
-    if (obj && typeof obj === "object") {
-      const out = {};
-      for (const [k, v] of Object.entries(obj)) {
-        if (typeof v === "number" || typeof v === "boolean") {
-          out[k] = v;
-          continue;
-        }
-        const cleaned = clean(v);
-        if (!isEmpty(cleaned)) {
-          out[k] = cleaned;
+  const emptyStr = (v) => typeof v === "string" && v.trim() === "";
+
+  // Remove apenas campos de DESCRIÇÃO vazios em uma lista de itens.
+  const slimItemList = (list, descFields) => {
+    if (!Array.isArray(list)) return list;
+    return list.map((item) => {
+      if (!item || typeof item !== "object") return item;
+      const out = { ...item };
+      for (const field of descFields) {
+        if (emptyStr(out[field])) {
+          delete out[field];
         }
       }
+      // Remove arrays de efeitos/custos vazios
+      if (Array.isArray(out.effects) && out.effects.length === 0) {
+        delete out.effects;
+      }
+      if (Array.isArray(out.costs) && out.costs.length === 0) {
+        delete out.costs;
+      }
+      if (Array.isArray(out.metamagics) && out.metamagics.length === 0) {
+        delete out.metamagics;
+      }
       return out;
-    }
-    return obj;
+    });
   };
 
-  return clean(char);
+  if (Array.isArray(c.skills)) {
+    c.skills = slimItemList(c.skills, [
+      "descBasic",
+      "descAdvanced",
+      "descSpecial",
+      "description",
+    ]);
+  }
+
+  if (Array.isArray(c.traits)) {
+    c.traits = slimItemList(c.traits, ["description", "source"]);
+  }
+
+  if (Array.isArray(c.equipment)) {
+    c.equipment = slimItemList(c.equipment, ["description", "notes"]);
+  }
+
+  if (c.magic && Array.isArray(c.magic.grimoire)) {
+    c.magic = {
+      ...c.magic,
+      grimoire: slimItemList(c.magic.grimoire, [
+        "description",
+        "peculiarities",
+        "casting",
+        "target",
+        "area",
+        "range",
+        "duration",
+      ]),
+    };
+  }
+
+  return c;
 }
 
 /**
