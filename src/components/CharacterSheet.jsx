@@ -649,13 +649,13 @@ export function CharacterSheet({ characterId }) {
                   <SecondaryWithBonus
                     value={secondary.deslocamento.value}
                     unit="m"
-                    bonus={character.secondary.deslocamento.bonus || 0}
+                    bonus={character.secondary?.deslocamento?.bonus || 0}
                     onBonusChange={(v) =>
                       update({
                         secondary: {
                           ...character.secondary,
                           deslocamento: {
-                            ...character.secondary.deslocamento,
+                            ...(character.secondary?.deslocamento || {}),
                             bonus: v,
                           },
                         },
@@ -819,12 +819,15 @@ export function CharacterSheet({ characterId }) {
             onRoll={(skill) => {
               const dice = skill.level === "A" ? 2 : skill.level === "B" ? 1 : 0;
               const attrKey = skill.attribute || "mente";
+              const rollName = skill.subgroup
+                ? `${skill.name} (${skill.subgroup})`
+                : skill.name;
               rollWith(
-                skill.name,
+                rollName,
                 character.attributes[attrKey]?.value || 0,
                 (character.attributes[attrKey]?.dice || 0) + dice,
                 0,
-                { attribute: attrKey, skillName: skill.name },
+                { attribute: attrKey, skillName: rollName },
               );
             }}
           />
@@ -1209,6 +1212,67 @@ function EquipmentPanel({ items, onChange }) {
   );
 }
 
+/* =========================================================================
+   Painel de Habilidades
+   ========================================================================= */
+function SkillSubgroup({ skill, onChange }) {
+  const canEdit = useContext(EditPermContext);
+
+  // O texto de subgroupOptions pode ser:
+  //  - uma lista limpa: "Arcano, História, Religião, Natureza"
+  //  - uma descrição com prefixo: "Cada elemento...: acida (Ácido), ignis (Fogo)"
+  // Tentamos extrair opções utilizáveis. Se houver ":" pegamos só o que
+  // vem depois. Limpamos parênteses explicativos longos.
+  const rawOpts = skill.subgroupOptions || "";
+  const afterColon = rawOpts.includes(":")
+    ? rawOpts.slice(rawOpts.indexOf(":") + 1)
+    : rawOpts;
+  const options = afterColon
+    .split(/[;,]/)
+    .map((o) => o.trim())
+    // Remove parênteses explicativos do fim para encurtar o rótulo,
+    // mantendo o nome principal (ex: "acida (Ácido)" → "acida (Ácido)").
+    .filter((o) => o && o.length <= 60);
+
+  const hasValue = !!(skill.subgroup && skill.subgroup.trim());
+
+  // Jogador sem subgrupo definido: não mostra nada.
+  if (!canEdit && !hasValue) return null;
+
+  return (
+    <div className="skill-subgroup">
+      <label>Subgrupo</label>
+      {options.length > 0 ? (
+        <select
+          value={skill.subgroup || ""}
+          onChange={(e) => onChange({ subgroup: e.target.value })}
+          className="subgroup-select"
+          disabled={!canEdit}
+        >
+          <option value="">— selecione —</option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+          {skill.subgroup && !options.includes(skill.subgroup) && (
+            <option value={skill.subgroup}>{skill.subgroup}</option>
+          )}
+        </select>
+      ) : (
+        <input
+          type="text"
+          value={skill.subgroup || ""}
+          onChange={(e) => onChange({ subgroup: e.target.value })}
+          placeholder="ex: idioma, elemento, palavra arcana..."
+          className="subgroup-input"
+          disabled={!canEdit}
+        />
+      )}
+    </div>
+  );
+}
+
 function SkillsPanel({ skills, attributes, onChange, onRoll }) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -1223,6 +1287,8 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
           descBasic: libSkill.descBasic || "",
           descAdvanced: libSkill.descAdvanced || "",
           descSpecial: libSkill.descSpecial || "",
+          subgroupOptions: libSkill.subgroups || "",
+          subgroup: "",
         },
       ]);
     } else {
@@ -1322,6 +1388,10 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
                 ✕
               </button>
             </div>
+            <SkillSubgroup
+              skill={s}
+              onChange={(patch) => updateSkill(i, patch)}
+            />
             <ItemEffectsBlock
               item={s}
               onChange={(patch) => updateSkill(i, patch)}

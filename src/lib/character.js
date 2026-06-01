@@ -315,6 +315,11 @@ export function migrateCharacter(char) {
       descBasic: typeof s.descBasic === "string" ? s.descBasic : base.description || "",
       descAdvanced: typeof s.descAdvanced === "string" ? s.descAdvanced : "",
       descSpecial: typeof s.descSpecial === "string" ? s.descSpecial : "",
+      // Subgrupo escolhido (1 por habilidade): ex. idioma, elemento,
+      // atributo, palavra arcana, etc. Texto livre.
+      subgroup: typeof s.subgroup === "string" ? s.subgroup : "",
+      // Opções de subgrupo disponíveis (vindas da biblioteca), se houver.
+      subgroupOptions: typeof s.subgroupOptions === "string" ? s.subgroupOptions : "",
       // Slots de ficha técnica
       activation: typeof s.activation === "string" ? s.activation : "",
       target: typeof s.target === "string" ? s.target : "",
@@ -533,6 +538,8 @@ export function slimCharacter(char) {
       "descAdvanced",
       "descSpecial",
       "description",
+      "subgroup",
+      "subgroupOptions",
     ]);
   }
 

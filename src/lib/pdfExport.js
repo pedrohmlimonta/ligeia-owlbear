@@ -291,6 +291,7 @@ function renderSkills(c) {
             <li>
               <div class="skill-head">
                 <strong>${ESC(s.name) || "—"}</strong>
+                ${s.subgroup ? `<span class="skill-subgroup-tag">${ESC(s.subgroup)}</span>` : ""}
                 ${lvl}
                 ${mode}
               </div>
@@ -784,6 +785,17 @@ export function characterToPrintableHtml(character) {
     border-radius: 6px;
     font-size: 8pt;
     font-style: italic;
+  }
+  .skill-subgroup-tag {
+    display: inline-block;
+    margin-left: 0.4em;
+    background: linear-gradient(135deg, #e8dcc0, #d8c8a0);
+    color: #5a4a2a;
+    border: 1px solid #c0a860;
+    padding: 0.05em 0.45em;
+    border-radius: 8px;
+    font-size: 8pt;
+    font-weight: 600;
   }
 
   .prose-block {

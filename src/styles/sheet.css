@@ -1707,3 +1707,46 @@
   padding: 0 0.3rem !important;
   cursor: pointer;
 }
+
+/* =========================================================================
+   Subgrupo da habilidade (palavra arcana, idioma, elemento, etc.)
+   ========================================================================= */
+.skill-subgroup {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.1rem 0.1rem;
+}
+
+.skill-subgroup label {
+  font-family: var(--font-display);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold-soft);
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.subgroup-select,
+.subgroup-input {
+  flex: 1;
+  font-size: 0.8rem !important;
+  padding: 0.2rem 0.4rem !important;
+  background: rgba(212, 166, 73, 0.06) !important;
+  border: 1px solid var(--gold-soft) !important;
+  color: var(--gold) !important;
+  border-radius: 3px;
+}
+
+.subgroup-select:disabled,
+.subgroup-input:disabled {
+  opacity: 0.8;
+  border-color: var(--border) !important;
+  color: var(--text-soft) !important;
+}
+
+.subgroup-select option {
+  background: var(--bg-deep);
+  color: var(--text);
+}
