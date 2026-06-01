@@ -1750,3 +1750,26 @@
   background: var(--bg-deep);
   color: var(--text);
 }
+
+/* Seletor de subgrupo dentro do LibraryPicker */
+.picker-subgroup {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--gold-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.picker-subgroup label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+  margin: 0;
+}
+
+.picker-subgroup .subgroup-select {
+  width: 100%;
+}

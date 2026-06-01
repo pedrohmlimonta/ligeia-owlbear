@@ -1276,7 +1276,7 @@ function SkillSubgroup({ skill, onChange }) {
 function SkillsPanel({ skills, attributes, onChange, onRoll }) {
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  const addSkill = (libSkill) => {
+  const addSkill = (libSkill, extra = {}) => {
     if (libSkill) {
       onChange([
         ...skills,
@@ -1288,7 +1288,7 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
           descAdvanced: libSkill.descAdvanced || "",
           descSpecial: libSkill.descSpecial || "",
           subgroupOptions: libSkill.subgroups || "",
-          subgroup: "",
+          subgroup: extra.subgroup || "",
         },
       ]);
     } else {

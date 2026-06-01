@@ -2,19 +2,35 @@ import { useState, useMemo } from "react";
 import { ARCANE_WORDS } from "../data/magicWords.js";
 
 /**
+ * Extrai opções de subgrupo de uma string da biblioteca.
+ * Lida com descrições que têm prefixo antes de ":" e ignora fragmentos
+ * longos demais para serem opções.
+ */
+function parseSubgroupOptions(raw) {
+  if (!raw) return [];
+  const afterColon = raw.includes(":") ? raw.slice(raw.indexOf(":") + 1) : raw;
+  return afterColon
+    .split(/[;,]/)
+    .map((o) => o.trim())
+    .filter((o) => o && o.length <= 60);
+}
+
+/**
  * Modal de seleção a partir de uma biblioteca de itens.
  *
  * Props:
  *  - title: título do modal (ex: "Adicionar Habilidade")
  *  - library: array de itens (skillsLibrary, spellsLibrary, equipmentLibrary)
  *  - kind: "skill" | "spell" | "equipment"
- *  - onPick: callback chamado ao escolher um item. Recebe o item bruto da
- *    biblioteca (ou null se "Criar novo").
+ *  - onPick: callback chamado ao escolher um item. Recebe (item, extra) onde
+ *    item é o objeto bruto da biblioteca (ou null se "Criar novo") e extra é
+ *    um objeto opcional com escolhas adicionais ({ subgroup }).
  *  - onClose: cancelar
  */
 export function LibraryPicker({ title, library, kind, onPick, onClose }) {
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [chosenSubgroup, setChosenSubgroup] = useState("");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -32,11 +48,16 @@ export function LibraryPicker({ title, library, kind, onPick, onClose }) {
 
   const selected = library.find((it) => it.id === selectedId);
 
+  // Opções de subgrupo da habilidade selecionada (só para kind=skill)
+  const subgroupOptions =
+    kind === "skill" && selected ? parseSubgroupOptions(selected.subgroups) : [];
+  const hasSubgroups = subgroupOptions.length > 0;
+
   const handleConfirm = () => {
     if (selectedId === "__new__") {
       onPick(null);
     } else if (selected) {
-      onPick(selected);
+      onPick(selected, { subgroup: chosenSubgroup });
     } else {
       // Nada selecionado — comportamento padrão: criar novo
       onPick(null);
@@ -65,7 +86,10 @@ export function LibraryPicker({ title, library, kind, onPick, onClose }) {
 
           <select
             value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
+            onChange={(e) => {
+              setSelectedId(e.target.value);
+              setChosenSubgroup(""); // reseta subgrupo ao trocar de item
+            }}
             size={12}
             className="library-list"
           >
@@ -125,6 +149,23 @@ export function LibraryPicker({ title, library, kind, onPick, onClose }) {
                   {selected.descSpecial && (
                     <div style={{ marginTop: "0.4rem" }}>
                       <strong>Especial:</strong> {selected.descSpecial}
+                    </div>
+                  )}
+                  {hasSubgroups && (
+                    <div className="picker-subgroup">
+                      <label>Escolha o subgrupo:</label>
+                      <select
+                        value={chosenSubgroup}
+                        onChange={(e) => setChosenSubgroup(e.target.value)}
+                        className="subgroup-select"
+                      >
+                        <option value="">— selecione —</option>
+                        {subgroupOptions.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   )}
                 </>
