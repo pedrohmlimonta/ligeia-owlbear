@@ -1162,19 +1162,19 @@ export const SKILLS_LIBRARY = [
     // effects: um de cada tipo, como referência
     effects: [
       // +Dados de melhoria numa rolagem
-      { type: "dice", target: "attack", value: 1, label: "+1D em ataques", enabled: true },
+      { type: "dice", target: "attack", value: 1, label: "+1D em ataques", enabled: false },
       // +Bônus fixo numa rolagem
-      { type: "bonus", target: "defense", value: 2, label: "+2 na defesa", enabled: true },
+      { type: "bonus", target: "defense", value: 2, label: "+2 na defesa", enabled: false },
       // Modificar valor derivado (PV/PM/iniciativa/defesa/deslocamento...)
-      { type: "stat", target: "max_hp", value: 5, label: "+5 PV máximo", enabled: true },
+      { type: "stat", target: "max_hp", value: 5, label: "+5 PV máximo", enabled: false },
       // DEFINIR valor fixo enquanto ativa (atributo ou secundário)
-      { type: "set", target: "deslocamento", value: 10, label: "Deslocamento fixado em 10m", enabled: true },
+      { type: "set", target: "deslocamento", value: 10, label: "Deslocamento fixado em 10m", enabled: false },
       // Bônus de dano (informativo, somado no painel)
-      { type: "damage", target: "all", value: 3, label: "+3 de dano", enabled: true },
+      { type: "damage", target: "all", value: 3, label: "+3 de dano", enabled: false },
       // Redução de dano (informativo, somado no painel)
-      { type: "rd", target: "all", value: 2, label: "Reduz 2 de dano recebido", enabled: true },
+      { type: "rd", target: "all", value: 2, label: "Reduz 2 de dano recebido", enabled: false },
       // Condição / texto livre (sem efeito mecânico)
-      { type: "info", target: "all", value: 0, label: "Brilha intensamente enquanto ativa", enabled: true },
+      { type: "info", target: "all", value: 0, label: "Brilha intensamente enquanto ativa", enabled: false },
     ],
     // costs: recursos gastos. resource: "mp" | "hp" | "heroic" | "hpTemp"
     costs: [
