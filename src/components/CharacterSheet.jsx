@@ -61,6 +61,37 @@ import { DiceTray } from "./Die3D.jsx";
 // dependem do contexto, são sempre clicáveis.
 const EditPermContext = createContext(true);
 
+/**
+ * Extrai a configuração mecânica (mode/active/effects/costs) de uma entrada
+ * de biblioteca que carrega efeitos INLINE. Usado por habilidades, magias,
+ * traços e equipamentos.
+ *
+ * Regras:
+ *  - mode: usa o da entrada se válido, senão "passive"
+ *  - active: itens ativos SEMPRE começam off (false); passivos ficam ativos
+ *  - effects/costs: copiados (cópia rasa de cada efeito/custo)
+ *  - _justAdded: true quando há efeitos/custos, para o painel abrir expandido
+ */
+function extractInlineConfig(libItem) {
+  const mode =
+    libItem.mode === "active" || libItem.mode === "passive"
+      ? libItem.mode
+      : "passive";
+  const effects = Array.isArray(libItem.effects)
+    ? libItem.effects.map((e) => ({ ...e }))
+    : [];
+  const costs = Array.isArray(libItem.costs)
+    ? libItem.costs.map((c) => ({ ...c }))
+    : [];
+  return {
+    mode,
+    active: false, // ativas começam off; passivas ignoram este campo
+    effects,
+    costs,
+    _justAdded: effects.length > 0 || costs.length > 0,
+  };
+}
+
 export function CharacterSheet({ characterId }) {
   const [character, setCharacter] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1096,7 +1127,7 @@ function EquipmentPanel({ items, onChange }) {
 
   const addItem = (libItem) => {
     if (libItem) {
-      // Pré-preenche a partir da biblioteca
+      // Pré-preenche a partir da biblioteca, incluindo efeitos inline.
       onChange([
         ...list,
         {
@@ -1105,6 +1136,7 @@ function EquipmentPanel({ items, onChange }) {
           weight: libItem.weight || 0,
           notes: libItem.properties || "",
           description: libItem.description || "",
+          ...extractInlineConfig(libItem),
         },
       ]);
     } else {
@@ -1455,6 +1487,7 @@ function TraitsPanel({ traits, onChange }) {
           name: libTrait.name,
           source: libTrait.source || "",
           description: libTrait.description || "",
+          ...extractInlineConfig(libTrait),
         },
       ]);
     } else {
@@ -1579,6 +1612,7 @@ function MagicSection({ character, onChange, onRoll }) {
         description: libSpell.description || "",
         peculiarities: libSpell.peculiarities || "",
         metamagics: [],
+        ...extractInlineConfig(libSpell),
       };
       // Se tiver "effect", concatena à descrição
       if (libSpell.effect) {
