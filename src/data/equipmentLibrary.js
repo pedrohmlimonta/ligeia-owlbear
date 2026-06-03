@@ -1,5 +1,28 @@
 export const EQUIPMENT_LIBRARY = [
   {
+    "id": "modelo-completo-equipamento",
+    "name": "★ Modelo Completo (equipamento)",
+    "category": "Modelo",
+    "price": "—",
+    "weight": 0,
+    "description": "Equipamento-modelo de referência. Entra como ATIVO (desligado) com um efeito de cada tipo e dois custos. Para itens que valem sempre que equipados (ex: armadura), use mode passive.",
+    "properties": "Modelo — não é um item real.",
+    "mode": "active",
+    "effects": [
+      { "type": "dice", "target": "attack", "value": 1, "label": "+1D em ataques", "enabled": true },
+      { "type": "bonus", "target": "defense", "value": 2, "label": "+2 na defesa", "enabled": true },
+      { "type": "stat", "target": "max_hp", "value": 5, "label": "+5 PV máximo", "enabled": true },
+      { "type": "set", "target": "deslocamento", "value": 6, "label": "Deslocamento fixado em 6m (item pesado)", "enabled": true },
+      { "type": "damage", "target": "all", "value": 4, "label": "+4 de dano", "enabled": true },
+      { "type": "rd", "target": "all", "value": 3, "label": "Proteção 3", "enabled": true },
+      { "type": "info", "target": "all", "value": 0, "label": "Condição/efeito narrativo livre", "enabled": true }
+    ],
+    "costs": [
+      { "resource": "mp", "value": 1, "label": "ao ativar" },
+      { "resource": "hpTemp", "value": 5, "label": "concede 5 PV temporários" }
+    ]
+  },
+  {
     "id": "roupas",
     "name": "Roupas",
     "category": "Armadura",

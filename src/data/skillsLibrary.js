@@ -5,6 +5,45 @@
 // =============================================================
 
 export const SKILLS_LIBRARY = [
+  // ===========================================================================
+  // ★ MODELO — todos os tipos de efeito + custos (referência de código)
+  // Copie este bloco, troque id/name e ajuste os efeitos para criar novas
+  // habilidades com mecânica embutida. Campos mecânicos lidos por addSkill:
+  //   mode    "active" (liga/desliga) | "passive" (sempre ligada)
+  //   effects type: dice|bonus|stat|set|damage|rd|info
+  //           target (dice/bonus): all|forca|agilidade|vigor|mente|percepcao|
+  //                                attack|defense|initiative|skill:<Nome>
+  //           target (stat): max_hp|max_mp|max_heroic|initiative|defense|deslocamento
+  //           target (set):  forca|agilidade|vigor|mente|percepcao|bloqueio|
+  //                          esquiva|conjuracao|iniciativa|deslocamento|percepcao_passiva
+  //   costs   resource: mp|hp|heroic|hpTemp
+  // ===========================================================================
+  {
+    id: "modelo-completo-habilidade",
+    name: "★ Modelo Completo (habilidade)",
+    prereq: null,
+    lists: "Modelo — não pertence a nenhuma lista real.",
+    subgroups: null,
+    descBasic:
+      "Habilidade-modelo de referência. Entra como ATIVA (desligada) com um efeito de cada tipo e dois custos. Use como gabarito ao criar habilidades no código.",
+    descAdvanced:
+      "Os efeitos só valem com a habilidade ligada. Ligue/desligue cada efeito na ficha. Edite ou apague à vontade.",
+    descSpecial: null,
+    mode: "active",
+    effects: [
+      { type: "dice", target: "attack", value: 1, label: "+1D em ataques", enabled: true },
+      { type: "bonus", target: "defense", value: 2, label: "+2 na defesa", enabled: true },
+      { type: "stat", target: "max_hp", value: 5, label: "+5 PV máximo", enabled: true },
+      { type: "set", target: "deslocamento", value: 10, label: "Deslocamento fixado em 10m", enabled: true },
+      { type: "damage", target: "all", value: 3, label: "+3 de dano", enabled: true },
+      { type: "rd", target: "all", value: 2, label: "Reduz 2 de dano recebido", enabled: true },
+      { type: "info", target: "all", value: 0, label: "Condição/efeito narrativo livre", enabled: true },
+    ],
+    costs: [
+      { resource: "mp", value: 2, label: "ao ativar" },
+      { resource: "heroic", value: 1, label: "por rodada mantida" },
+    ],
+  },
   {
     id: "acrobacia",
     name: "Acrobacia",

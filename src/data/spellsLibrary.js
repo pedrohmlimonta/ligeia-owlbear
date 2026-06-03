@@ -3,6 +3,40 @@
 // =============================================================
 
 export const SPELLS_LIBRARY = [
+  // ===========================================================================
+  // ★ MODELO — todos os tipos de efeito + custos (referência de código)
+  // Copie e ajuste para criar magias com mecânica embutida. Mesmos tipos/
+  // targets das habilidades. Campos mecânicos: mode, effects, costs.
+  // ===========================================================================
+  {
+    id: "modelo-completo-magia",
+    name: "★ Modelo Completo (magia)",
+    tier: "Menor",
+    wordId: "ignis",
+    casting: "Ação",
+    target: "1 criatura",
+    area: "—",
+    range: "Curto",
+    duration: "Concentração",
+    description:
+      "Magia-modelo de referência. Entra como ATIVA (desligada) com um efeito de cada tipo e dois custos. Use como gabarito ao criar magias no código.",
+    effect: "",
+    peculiarities: "",
+    mode: "active",
+    effects: [
+      { type: "dice", target: "attack", value: 1, label: "+1D em ataques", enabled: true },
+      { type: "bonus", target: "defense", value: 2, label: "+2 na defesa", enabled: true },
+      { type: "stat", target: "max_mp", value: 5, label: "+5 PM máximo", enabled: true },
+      { type: "set", target: "conjuracao", value: 12, label: "Conjuração fixada em 12", enabled: true },
+      { type: "damage", target: "all", value: 6, label: "+6 de dano de fogo", enabled: true },
+      { type: "rd", target: "all", value: 2, label: "Reduz 2 de dano", enabled: true },
+      { type: "info", target: "all", value: 0, label: "Condição/efeito narrativo livre", enabled: true },
+    ],
+    costs: [
+      { resource: "mp", value: 3, label: "ao conjurar" },
+      { resource: "heroic", value: 1, label: "por rodada de concentração" },
+    ],
+  },
   {
     id: "detectar-augurado",
     name: "Detectar",

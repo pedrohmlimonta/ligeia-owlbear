@@ -4,6 +4,33 @@
 // =============================================================
 
 export const TRAITS_LIBRARY = [
+  // ===========================================================================
+  // ★ MODELO — todos os tipos de efeito + custos (referência de código)
+  // Copie e ajuste para criar traços com mecânica embutida. Traços costumam
+  // ser passivos (mode: "passive"); este modelo é ativo só para demonstrar.
+  // ===========================================================================
+  {
+    id: "modelo-completo-traco",
+    name: "★ Modelo Completo (traço)",
+    source: "Modelo",
+    sourceType: "race",
+    description:
+      "Traço-modelo de referência. Entra como ATIVO (desligado) com um efeito de cada tipo e dois custos. Para traços naturais que valem sempre, use mode: \"passive\".",
+    mode: "active",
+    effects: [
+      { type: "dice", target: "all", value: 1, label: "+1D em qualquer rolagem", enabled: true },
+      { type: "bonus", target: "initiative", value: 2, label: "+2 na Iniciativa", enabled: true },
+      { type: "stat", target: "max_heroic", value: 1, label: "+1 Ponto Heroico máx", enabled: true },
+      { type: "set", target: "deslocamento", value: 9, label: "Deslocamento fixado em 9m", enabled: true },
+      { type: "damage", target: "all", value: 2, label: "+2 de dano", enabled: true },
+      { type: "rd", target: "all", value: 1, label: "Reduz 1 de dano (resistência natural)", enabled: true },
+      { type: "info", target: "all", value: 0, label: "Condição/efeito narrativo livre", enabled: true },
+    ],
+    costs: [
+      { resource: "heroic", value: 1, label: "ao ativar" },
+      { resource: "mp", value: 1, label: "por uso" },
+    ],
+  },
   {
     id: "anao-das-montanhas-visao-no-escuro-10m",
     name: "Visão no Escuro (10m)",
