@@ -1279,9 +1279,34 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
 
   const addSkill = (libSkill, extra = {}) => {
     if (libSkill) {
-      // Se a habilidade tiver um modelo de efeitos pré-configurado, aplica.
-      // Habilidades ativas entram desligadas (off) para o jogador ligar.
-      const tpl = getSkillTemplate(libSkill.id);
+      // Fonte dos efeitos/modo, em ordem de prioridade:
+      //  1) efeitos declarados INLINE na própria entrada da biblioteca
+      //  2) modelo correspondente em skillTemplates.js (por id)
+      //  3) defaults (passiva, sem efeitos)
+      // Habilidades ativas entram SEMPRE desligadas (off).
+      const hasInline =
+        Array.isArray(libSkill.effects) ||
+        typeof libSkill.mode === "string" ||
+        Array.isArray(libSkill.costs);
+      const tpl = hasInline ? null : getSkillTemplate(libSkill.id);
+
+      const mode =
+        libSkill.mode === "active" || libSkill.mode === "passive"
+          ? libSkill.mode
+          : tpl
+          ? tpl.mode
+          : "passive";
+      const effects = Array.isArray(libSkill.effects)
+        ? libSkill.effects.map((e) => ({ ...e }))
+        : tpl
+        ? tpl.effects
+        : [];
+      const costs = Array.isArray(libSkill.costs)
+        ? libSkill.costs.map((c) => ({ ...c }))
+        : tpl
+        ? tpl.costs
+        : [];
+
       onChange([
         ...skills,
         {
@@ -1293,11 +1318,14 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
           descSpecial: libSkill.descSpecial || "",
           subgroupOptions: libSkill.subgroups || "",
           subgroup: extra.subgroup || "",
-          // Modo e efeitos do modelo (ou defaults se não houver modelo)
-          mode: tpl ? tpl.mode : "passive",
-          active: tpl ? tpl.active : false,
-          effects: tpl ? tpl.effects : [],
-          costs: tpl ? tpl.costs : [],
+          mode,
+          // Ativas sempre começam off, independente do que vier na fonte.
+          active: mode === "active" ? false : false,
+          effects,
+          costs,
+          // Marca para o painel de efeitos abrir já expandido (só quando
+          // há efeitos pré-configurados). Limpo no primeiro save.
+          _justAdded: effects.length > 0 || costs.length > 0,
         },
       ]);
     } else {
@@ -1928,9 +1956,11 @@ function ItemEffectsBlock({ item, onChange, kind = "skill" }) {
 
   const hasEffects = (item.effects || []).length > 0;
 
-  // Sempre começa fechado ao montar o componente / abrir a ficha.
+  // Abre o painel de efeitos já expandido quando o item foi adicionado da
+  // biblioteca com efeitos pré-configurados (flag _justAdded). Caso
+  // contrário, começa fechado.
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [effectsOpen, setEffectsOpen] = useState(false);
+  const [effectsOpen, setEffectsOpen] = useState(!!item._justAdded && hasEffects);
   const active = isItemActive(item);
 
   const effCount = (item.effects || []).length;

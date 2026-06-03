@@ -513,6 +513,8 @@ export function slimCharacter(char) {
     return list.map((item) => {
       if (!item || typeof item !== "object") return item;
       const out = { ...item };
+      // Remove flag temporária de UI (nunca deve ser persistida)
+      delete out._justAdded;
       for (const field of descFields) {
         if (emptyStr(out[field])) {
           delete out[field];

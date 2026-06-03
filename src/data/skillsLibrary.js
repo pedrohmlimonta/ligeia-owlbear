@@ -1145,41 +1145,4 @@ export const SKILLS_LIBRARY = [
     descAdvanced: "Quando você faz ataques múltiplos, a penalida-",
     descSpecial: null,
   },
-  {
-    id: "modelo-completo",
-    name: "★ Modelo Completo (todos os efeitos)",
-    prereq: null,
-    lists: "Modelo — não pertence a nenhuma lista real.",
-    subgroups: null,
-    descBasic:
-      "Habilidade-modelo. Ao adicioná-la, entra como ATIVA (desligada) já com um efeito de cada tipo e dois custos. Use como gabarito para criar outras habilidades direto na skillsLibrary.",
-    descAdvanced:
-      "Os efeitos só valem enquanto a habilidade estiver ligada. Ligue/desligue cada efeito individualmente na ficha. Edite ou apague à vontade — serve só de referência.",
-    descSpecial: null,
-    // ---- Configuração mecânica embutida (lida pelo addSkill) ----
-    // mode: "active" (jogador liga/desliga) ou "passive" (sempre ligada)
-    mode: "active",
-    // effects: um de cada tipo, como referência
-    effects: [
-      // +Dados de melhoria numa rolagem
-      { type: "dice", target: "attack", value: 1, label: "+1D em ataques", enabled: true },
-      // +Bônus fixo numa rolagem
-      { type: "bonus", target: "defense", value: 2, label: "+2 na defesa", enabled: true },
-      // Modificar valor derivado (PV/PM/iniciativa/defesa/deslocamento...)
-      { type: "stat", target: "max_hp", value: 5, label: "+5 PV máximo", enabled: true },
-      // DEFINIR valor fixo enquanto ativa (atributo ou secundário)
-      { type: "set", target: "deslocamento", value: 10, label: "Deslocamento fixado em 10m", enabled: true },
-      // Bônus de dano (informativo, somado no painel)
-      { type: "damage", target: "all", value: 3, label: "+3 de dano", enabled: true },
-      // Redução de dano (informativo, somado no painel)
-      { type: "rd", target: "all", value: 2, label: "Reduz 2 de dano recebido", enabled: true },
-      // Condição / texto livre (sem efeito mecânico)
-      { type: "info", target: "all", value: 0, label: "Brilha intensamente enquanto ativa", enabled: true },
-    ],
-    // costs: recursos gastos. resource: "mp" | "hp" | "heroic" | "hpTemp"
-    costs: [
-      { resource: "mp", value: 2, label: "ao ativar" },
-      { resource: "heroic", value: 1, label: "por rodada mantida" },
-    ],
-  },
 ];
