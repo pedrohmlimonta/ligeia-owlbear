@@ -49,6 +49,7 @@ import {
 } from "../data/character.js";
 import { ARCANE_WORDS } from "../data/magicWords.js";
 import { SKILLS_LIBRARY } from "../data/skillsLibrary.js";
+import { getSkillTemplate } from "../data/skillTemplates.js";
 import { SPELLS_LIBRARY } from "../data/spellsLibrary.js";
 import { EQUIPMENT_LIBRARY } from "../data/equipmentLibrary.js";
 import { TRAITS_LIBRARY } from "../data/traitsLibrary.js";
@@ -1278,6 +1279,9 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
 
   const addSkill = (libSkill, extra = {}) => {
     if (libSkill) {
+      // Se a habilidade tiver um modelo de efeitos pré-configurado, aplica.
+      // Habilidades ativas entram desligadas (off) para o jogador ligar.
+      const tpl = getSkillTemplate(libSkill.id);
       onChange([
         ...skills,
         {
@@ -1289,6 +1293,11 @@ function SkillsPanel({ skills, attributes, onChange, onRoll }) {
           descSpecial: libSkill.descSpecial || "",
           subgroupOptions: libSkill.subgroups || "",
           subgroup: extra.subgroup || "",
+          // Modo e efeitos do modelo (ou defaults se não houver modelo)
+          mode: tpl ? tpl.mode : "passive",
+          active: tpl ? tpl.active : false,
+          effects: tpl ? tpl.effects : [],
+          costs: tpl ? tpl.costs : [],
         },
       ]);
     } else {
